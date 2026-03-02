@@ -44,24 +44,29 @@ Feature 3: Citizen Feedback & Voting System
 Users can submit complaints or suggestions and vote on others’ submissions, prioritizing critical issues for faster action by authorities.
 
 Feature 4: City Health Score & Trend Tracking
-The platform calculates an overall Health Score based on infrastructure, environment, and citizen input, with visual trend charts showing improvements or deteriorations over time.
-
+-The platform calculates an overall Health Score based on infrastructure, environment, and citizen input, with visual trend charts showing improvements or deteriorations over time.
+-City Selection & Navigation – Choose cities and navigate interactive maps.
+-Landmark & Infrastructure Monitoring – Track status of roads, bridges, parks, hospitals, etc.
+-City Health Score – Overall score combining infrastructure, environment, governance, and citizen feedback.
+-Trend & Improvement Tracking – Monitor progress over time with charts and progress bars.
+-Citizen Complaints & Suggestions – Submit issues, suggestions, and vote on priorities.
+-Photo & Media Submission – Upload photos linked to landmarks for visual tracking.
+-Dashboard Layout – Panels for map, status cards, notifications, and Health Score.
+-City Lens Views – Focused filters: Infrastructure, Environment, Governance, Citizen Engagement.
+-Alerts & Notifications – Automatic updates for critical issues or low Health Scores.
+-Data Analytics & Visualization – Charts, trend cards, and condition analysis.
+-Interactivity & UX Features – Tooltips, modals, color-coded visuals, responsive design.
+-Prototype Features – Frontend mockup with dynamic map, Health Score, and interactive submissions.
 ## Implementation
 
 ### For Software:
 
 
-
-#### Circuit Setup
-[Explain how to set up the circuit]
-
----
-
 ## Project Documentation
 
 ### For Software:
 
-#### Screenshots (Add at least 3)
+#### Screenshots 
 
 
 
