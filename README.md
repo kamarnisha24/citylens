@@ -16,15 +16,14 @@
 https://kamarnisha24.github.io/citylens/
 
 ### Project Description
-CityLens is an interactive city health dashboard that allows citizens to monitor the condition of infrastructure, public services, and environment in their city. It enables users to view issues on a live map, upload photos, report problems, and track improvements over time. The platform promotes transparency, citizen engagement, and data-driven city management.
+CityLens is a citizen-centric platform that monitors the health of a city in real-time. It empowers citizens to report issues, upload photos, and suggest improvements, while authorities track progress and act on critical concerns. With its dynamic visual ‘City Lens,’ it highlights hotspots, trends, and urgent areas, ensuring transparency, accountability, and smarter city management.
 
 ### The Problem statement
-Many cities lack a transparent and centralized system where citizens can easily see the condition of public infrastructure and report issues effectively. Complaints often go unnoticed, progress is unclear, and there is limited visibility into how city problems are resolved. CityLens solves this by providing a unified, interactive platform that connects citizens and authorities, making city issues visible, trackable, and actionable.
+Cities often struggle with poor transparency, delayed maintenance, and limited citizen engagement. Citizens lack a clear view of infrastructure, sanitation, and public services, while authorities face challenges in prioritizing issues and tracking improvements. This results in slow problem resolution, reduced accountability, and citizens feeling disconnected from the development of their own city.
 
 ### The Solution
-We created CityLens, an interactive digital platform that visualizes the health of a city through a real-time dashboard and smart map interface. It allows citizens to report issues, upload photos directly onto the map, vote on problems, and track improvements over time. By combining transparency, citizen participation, and data-driven insights, CityLens bridges the gap between the public and authorities to ensure faster action and better city management.
+CityLens provides a comprehensive, interactive platform that transforms how cities are monitored and managed. It empowers citizens to report issues, submit photos, provide suggestions, and vote on priorities, creating a direct channel of engagement and accountability. The platform tracks city health across infrastructure, sanitation, environment, governance, and public services, calculating a dynamic Health Score that reflects real-time conditions. Through its visual City Lens, critical hotspots, trends, and improvements are highlighted, enabling authorities to identify urgent issues, monitor progress, and take timely action. Historical data and improvement tracking ensure transparency and motivate continuous development, while an intuitive dashboard layout with interactive maps, status cards, alerts, and progress visualizations makes the system accessible and actionable for both citizens and city administrators.”
 
----
 
 ## Technical Details
 
