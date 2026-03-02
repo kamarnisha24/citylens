@@ -2,15 +2,15 @@
   <img src="./img.png" alt="Project Banner" width="100%">
 </p>
 
-# [citylens]🎯
+# cityLens🎯
 
 ## Basic Details
 
-### Team Name: [algo]
+### Team Name: Algo
 
 ### Team Members
-- Member 1:kamar nisha fathima -MBCCET
--
+-Kamar Nisha Fathima -MBCCET
+
 
 ### Hosted Project Link
 https://kamarnisha24.github.io/citylens/
@@ -76,7 +76,7 @@ The platform calculates an overall Health Score based on infrastructure, environ
 ![WhatsApp Image 2026-03-02 at 20 37 20 (3)](https://github.com/user-attachments/assets/894b42c4-01e4-43a8-b46d-294c60190e35)
 ![WhatsApp Image 2026-03-02 at 20 37 21](https://github.com/user-attachments/assets/ee8646d0-157a-4d6b-a04c-eef415144e67)
 ![WhatsApp Image 2026-03-02 at 20 37 21 (1)](https://github.com/user-attachments/assets/da669c6a-cce8-4e3d-ac1b-b468e2b80a3c)
-t2]
+
 
 #### Diagrams
 
@@ -121,7 +121,7 @@ Integration of citizen feedback, photo uploads, and dynamic Health Score calcula
 UI/UX design decisions, layout refinement, and dark theme implementation
 Testing, debugging, and ensuring interactive responsiveness of the dashboard
 ## Team Contributions
-EVERYTHING DONE ONE AND ONLY ME
+EVERYTHING DONE BY ONE AND ONLY ME♥️
 
 
 
