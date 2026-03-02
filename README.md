@@ -80,6 +80,7 @@ The platform calculates an overall Health Score based on infrastructure, environ
 #### Diagrams
 
 **System Architecture:**
+https://drive.google.com/file/d/1CBebezpI_W2GtmJ9cDsTKS5ZyLKt2O5s/view?usp=drivesdk
 The CityLens system architecture consists of three main layers: the frontend, backend, and data layer. Citizens interact with the frontend dashboard, including the interactive map, photo uploads, complaint submission, and voting system. The frontend communicates with the backend server via APIs, sending user inputs (photos, complaints, suggestions) and fetching city data (landmarks, status, historical trends). The backend processes the data, updates the City Health Score, manages dynamic notifications, and stores information in the database. The database holds landmark details, user submissions, photos, and trend histories. Authorities access a dedicated admin panel connected to the backend to monitor critical issues, review citizen-reported photos, and track improvements over time. The architecture ensures real-time updates, dynamic Health Score calculations, and a seamless feedback loop between citizens and city authorities.
 
 
