@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityLens — Health Score & Trends</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body class="dashboard-body" style="overflow-y:auto">
+    <div id="toast-container"></div>
+
+    <style>
+        .page-main {
+            min-height: 100vh;
+            padding: 120px 24px 40px;
+            background: var(--bg);
+        }
+
+        .trends-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .score-hero {
+            background: linear-gradient(135deg, var(--blue-dark), #2d5298);
+            border-radius: var(--radius-xl);
+            padding: 36px;
+            margin-bottom: 28px;
+            color: white;
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .score-ring-hero {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            flex-shrink: 0;
+        }
+
+        .score-ring-hero svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .ring-bg2 {
+            fill: none;
+            stroke: rgba(255, 255, 255, .2);
+            stroke-width: 10;
+        }
+
+        .ring-fill2 {
+            fill: none;
+            stroke: white;
+            stroke-width: 10;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .ring-center-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ring-big {
+            font-family: 'Outfit', sans-serif;
+            font-size: 40px;
+            font-weight: 900;
+            color: white;
+            line-height: 1;
+        }
+
+        .ring-lbl {
+            font-size: 13px;
+            opacity: .75;
+            margin-top: 4px;
+        }
+
+        .score-details h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .score-details p {
+            opacity: .8;
+            font-size: 14px;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+
+        .trend-cards-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .trend-card-big {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .trend-card-big:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .tcb-period {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--gray-text);
+            margin-bottom: 8px;
+        }
+
+        .tcb-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+        }
+
+        .tcb-up {
+            color: var(--green);
+        }
+
+        .tcb-down {
+            color: var(--red);
+        }
+
+        .tcb-label {
+            font-size: 12px;
+            color: var(--gray-text);
+            margin-top: 4px;
+        }
+
+        .chart-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            color: var(--dark);
+        }
+
+        .cat-bars-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .cat-bar-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .cat-bar-card h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .cb-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .cb-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .cb-pct {
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .city-compare {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+        }
+
+        .city-compare h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .compare-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .compare-city {
+            width: 120px;
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .compare-bar-wrap {
+            flex: 1;
+        }
+
+        @media(max-width:700px) {
+            .trend-cards-row {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .cat-bars-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="page-main">
+        <div class="trends-wrap">
+
+            <!-- Score Hero -->
+            <div class="score-hero">
+                <div class="score-ring-hero">
+                    <svg viewBox="0 0 120 120">
+                        <circle class="ring-bg2" cx="60" cy="60" r="50" />
+                        <circle class="ring-fill2" id="ring-hero" cx="60" cy="60" r="50" stroke-dasharray="314"
+                            stroke-dashoffset="314" />
+                    </svg>
+                    <div class="ring-center-text">
+                        <div class="ring-big" id="ring-val">—</div>
+                        <div class="ring-lbl" id="ring-lbl">—</div>
+                    </div>
+                </div>
+                <div class="score-details">
+                    <h1>📈 Health Score &amp; Trends</h1>
+                    <p id="hero-desc">City health is a composite of infrastructure, environment, governance, and citizen
+                        engagement — updated dynamically with each citizen report.</p>
+                    <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+                        <div
+                            style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 16px;font-size:13px">
+                            🏗️ Infra: <strong id="s-infra">—</strong></div>
+                        <div
+                            style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 16px;font-size:13px">
+                            🌿 Env: <strong id="s-env">—</strong></div>
+                        <div
+                            style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 16px;font-size:13px">
+                            🏛️ Gov: <strong id="s-gov">—</strong></div>
+                        <div
+                            style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 16px;font-size:13px">
+                            💬 Citizen: <strong id="s-cit">—</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trend Cards -->
+            <div class="trend-cards-row">
+                <div class="trend-card-big card">
+                    <div class="tcb-period">Monthly Change</div>
+                    <div class="tcb-val" id="tc-monthly">—</div>
+                    <div class="tcb-label">vs last month</div>
+                </div>
+                <div class="trend-card-big card">
+                    <div class="tcb-period">Quarterly Change</div>
+                    <div class="tcb-val" id="tc-quarterly">—</div>
+                    <div class="tcb-label">Q1 vs Q4 2025</div>
+                </div>
+                <div class="trend-card-big card">
+                    <div class="tcb-period">Yearly Change</div>
+                    <div class="tcb-val" id="tc-yearly">—</div>
+                    <div class="tcb-label">2025 vs 2024</div>
+                </div>
+            </div>
+
+            <!-- Main Line Chart -->
+            <div class="chart-card">
+                <h3>📉 12-Month Score Trend</h3>
+                <canvas id="main-chart" height="280"></canvas>
+            </div>
+
+            <!-- Category Bars -->
+            <div class="cat-bars-grid">
+                <div class="cat-bar-card">
+                    <h4>Score Breakdown</h4>
+                    <div class="cb-row"><span class="cb-label">🏗️ Infrastructure</span><span class="cb-pct"
+                            id="bb-infra">—</span></div>
+                    <div class="progress-track" style="margin-bottom:14px">
+                        <div class="progress-fill green" id="pb-infra" style="width:0%"></div>
+                    </div>
+                    <div class="cb-row"><span class="cb-label">🌿 Environment</span><span class="cb-pct"
+                            id="bb-env">—</span></div>
+                    <div class="progress-track" style="margin-bottom:14px">
+                        <div class="progress-fill yellow" id="pb-env" style="width:0%"></div>
+                    </div>
+                    <div class="cb-row"><span class="cb-label">🏛️ Governance</span><span class="cb-pct"
+                            id="bb-gov">—</span></div>
+                    <div class="progress-track" style="margin-bottom:14px">
+                        <div class="progress-fill green" id="pb-gov" style="width:0%"></div>
+                    </div>
+                    <div class="cb-row"><span class="cb-label">💬 Citizen Engagement</span><span class="cb-pct"
+                            id="bb-cit">—</span></div>
+                    <div class="progress-track">
+                        <div class="progress-fill yellow" id="pb-cit" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="cat-bar-card">
+                    <h4>Score Formula</h4>
+                    <canvas id="donut-chart" height="220"></canvas>
+                </div>
+            </div>
+
+            <!-- City Comparison -->
+            <div class="city-compare">
+                <h3>🏙️ Compare with Other Cities</h3>
+                <div id="compare-rows"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/shared.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            injectSharedNavCSS(); injectNav(); injectPageNav();
+
+            const city = getCity();
+            const s = city.score;
+            const data = TREND_DATA[city.id] || TREND_DATA.bengaluru;
+            const n = data.length;
+
+            // Ring animation
+            const ring = document.getElementById("ring-hero");
+            const circumference = 314;
+            ring.style.strokeDashoffset = circumference - (s / 100) * circumference;
+            let cur = 0; const step = s / 60;
+            const timer = setInterval(() => { cur = Math.min(cur + step, s); document.getElementById("ring-val").textContent = `${Math.round(cur)}%`; if (cur >= s) clearInterval(timer); }, 20);
+            document.getElementById("ring-lbl").textContent = getScoreLabel(s);
+            document.getElementById("hero-desc").textContent = `${city.name}, ${city.state} — health is tracked across 4 pillars and updated with every citizen report.`;
+
+            // Sub-scores
+            const infra = Math.min(100, s + 7), env = Math.max(0, s - 7), gov = Math.min(100, s - 1), cit = Math.max(0, s - 17);
+            document.getElementById("s-infra").textContent = `${infra}%`;
+            document.getElementById("s-env").textContent = `${env}%`;
+            document.getElementById("s-gov").textContent = `${gov}%`;
+            document.getElementById("s-cit").textContent = `${cit}%`;
+
+            // Trend cards
+            const monthly = +(data[n - 1] - data[n - 2]).toFixed(1);
+            const quarterly = +(data[n - 1] - data[n - 4]).toFixed(1);
+            const yearly = +(data[n - 1] - data[0]).toFixed(1);
+            setTrend("tc-monthly", monthly); setTrend("tc-quarterly", quarterly); setTrend("tc-yearly", yearly);
+
+            // Category bars
+            [["infra", infra], ["env", env], ["gov", gov], ["cit", cit]].forEach(([k, v]) => {
+                document.getElementById(`bb-${k}`).textContent = `${v}%`;
+                document.getElementById(`bb-${k}`).style.color = getScoreColor(v);
+                document.getElementById(`pb-${k}`).style.width = `${v}%`;
+                document.getElementById(`pb-${k}`).className = `progress-fill ${getProgressClass(v)}`;
+            });
+
+            // Main line chart
+            new Chart(document.getElementById("main-chart"), {
+                type: "line",
+                data: {
+                    labels: TREND_DATA.labels,
+                    datasets: [
+                        { label: "City Score", data, borderColor: "#1F3B6F", backgroundColor: "rgba(31,59,111,.08)", borderWidth: 3, tension: .4, fill: true, pointRadius: 4, pointBackgroundColor: "#1F3B6F" },
+                        { label: "Infrastructure", data: data.map(d => Math.min(100, d + 7)), borderColor: "#28A745", borderWidth: 2, tension: .4, pointRadius: 2, borderDash: [] },
+                        { label: "Environment", data: data.map(d => Math.max(0, d - 7)), borderColor: "#FFC107", borderWidth: 2, tension: .4, pointRadius: 2 },
+                        { label: "Governance", data: data.map(d => Math.min(100, d - 1)), borderColor: "#3A6BC4", borderWidth: 2, tension: .4, pointRadius: 2 },
+                        { label: "Citizen Input", data: data.map(d => Math.max(0, d - 17)), borderColor: "#E74C3C", borderWidth: 2, tension: .4, pointRadius: 2 },
+                    ]
+                },
+                options: { responsive: true, plugins: { legend: { position: "bottom", labels: { font: { family: "Inter", size: 12 } } }, tooltip: { mode: "index", intersect: false } }, scales: { y: { min: 0, max: 100, grid: { color: "rgba(0,0,0,.05)" }, ticks: { callback: v => `${v}%` } }, x: { grid: { color: "rgba(0,0,0,.05)" } } } }
+            });
+
+            // Donut chart
+            new Chart(document.getElementById("donut-chart"), {
+                type: "doughnut",
+                data: { labels: ["Infrastructure 35%", "Environment 25%", "Governance 20%", "Citizen Input 20%"], datasets: [{ data: [35, 25, 20, 20], backgroundColor: ["#28A745", "#FFC107", "#3A6BC4", "#E74C3C"], borderWidth: 2, borderColor: "#fff" }] },
+                options: { responsive: true, plugins: { legend: { position: "bottom", labels: { font: { family: "Inter", size: 11 }, padding: 10 } }, tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed}% weight` } } } }
+            });
+
+            // City compare
+            const cmpDiv = document.getElementById("compare-rows");
+            const sorted = [...CITIES].sort((a, b) => b.score - a.score).slice(0, 8);
+            sorted.forEach(c => {
+                const isCurrent = c.id === city.id;
+                const div = document.createElement("div"); div.className = "compare-row";
+                div.innerHTML = `
+      <div class="compare-city" style="${isCurrent ? "font-weight:800;color:var(--blue-dark)" : ""}">${CITY_EMOJIS[c.id] || "🏙️"} ${c.name} ${isCurrent ? "⭐" : ""}</div>
+      <div class="compare-bar-wrap">
+        <div class="progress-track"><div class="progress-fill ${getProgressClass(c.score)}" style="width:${c.score}%;transition:width .8s ease"></div></div>
+      </div>
+      <div style="width:42px;text-align:right;font-weight:800;font-size:14px;color:${getScoreColor(c.score)}">${c.score}%</div>`;
+                cmpDiv.appendChild(div);
+            });
+        });
+
+        function setTrend(id, val) {
+            const el = document.getElementById(id); if (!el) return;
+            el.textContent = `${val >= 0 ? "+" : ""}${val}%`;
+            el.className = `tcb-val ${val >= 0 ? "tcb-up" : "tcb-down"}`;
+        }
+    </script>
+</body>
+
+</html>

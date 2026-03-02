@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityLens — Infrastructure & Public Services</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+
+<body class="dashboard-body" style="overflow-y:auto">
+    <div id="toast-container"></div>
+
+    <style>
+        .page-main {
+            min-height: 100vh;
+            padding: 120px 24px 40px;
+            background: var(--bg);
+        }
+
+        .infra-page {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .infra-hero {
+            background: linear-gradient(135deg, var(--blue-dark), #2d5298);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 28px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .infra-hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .infra-hero p {
+            opacity: .8;
+            font-size: 15px;
+        }
+
+        .infra-score-big {
+            font-family: 'Outfit', sans-serif;
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .infra-score-label {
+            font-size: 13px;
+            opacity: .7;
+            margin-top: 4px;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .service-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: var(--transition);
+            animation: fadeInUp .3s ease both;
+        }
+
+        .service-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .service-card.red {
+            border-left: 4px solid var(--red);
+        }
+
+        .service-card.yellow {
+            border-left: 4px solid var(--yellow);
+        }
+
+        .service-card.green {
+            border-left: 4px solid var(--green);
+        }
+
+        .sc-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .sc-icon-name {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sc-icon {
+            font-size: 28px;
+        }
+
+        .sc-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .sc-cat {
+            font-size: 12px;
+            color: var(--gray-text);
+            margin-top: 2px;
+        }
+
+        .sc-reports {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 100px;
+        }
+
+        .sc-auth {
+            font-size: 12px;
+            color: var(--gray-text);
+            margin-bottom: 12px;
+        }
+
+        .sc-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .summary-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .summary-num {
+            font-family: 'Outfit', sans-serif;
+            font-size: 36px;
+            font-weight: 800;
+        }
+
+        .summary-lbl {
+            font-size: 13px;
+            color: var(--gray-text);
+            margin-top: 4px;
+        }
+
+        @media(max-width:700px) {
+            .summary-cards {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .infra-hero {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
+    </style>
+
+    <div class="page-main">
+        <div class="infra-page">
+
+            <!-- Hero Banner -->
+            <div class="infra-hero">
+                <div>
+                    <h1>🏗️ Infrastructure &amp; Public Services</h1>
+                    <p id="hero-sub">View all landmarks, their current status and authority details.</p>
+                </div>
+                <div style="text-align:right">
+                    <div class="infra-score-big" id="infra-score-big">—</div>
+                    <div class="infra-score-label">Infrastructure Score</div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-num status-green" id="sum-green">—</div>
+                    <div class="summary-lbl">🟢 Functional</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-num status-yellow" id="sum-yellow">—</div>
+                    <div class="summary-lbl">🟡 Maintenance</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-num status-red" id="sum-red">—</div>
+                    <div class="summary-lbl">🔴 Critical</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-num" style="color:var(--blue-dark)" id="sum-total">—</div>
+                    <div class="summary-lbl">Total Landmarks</div>
+                </div>
+            </div>
+
+            <!-- Category Filter -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="cat-filters">
+                <button class="filter-chip active" onclick="filterCards(this,'all')">All</button>
+                <button class="filter-chip" onclick="filterCards(this,'Parks & Green Spaces')">🌳 Parks</button>
+                <button class="filter-chip" onclick="filterCards(this,'Roads & Highways')">🛣️ Roads</button>
+                <button class="filter-chip" onclick="filterCards(this,'Bridges')">🌉 Bridges</button>
+                <button class="filter-chip" onclick="filterCards(this,'Hospitals')">🏥 Hospitals</button>
+                <button class="filter-chip" onclick="filterCards(this,'Schools & Colleges')">🏫 Schools</button>
+                <button class="filter-chip" onclick="filterCards(this,'Public Amenities')">🚻 Amenities</button>
+            </div>
+
+            <div class="section-title">🏢 All Landmarks</div>
+            <div class="services-grid" id="services-grid"></div>
+
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/shared.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            injectSharedNavCSS(); injectNav(); injectPageNav();
+
+            const city = getCity();
+            const lms = LANDMARKS[city.id] || [];
+            const s = city.score;
+            const infraScore = Math.min(100, s + 7);
+
+            document.getElementById("hero-sub").textContent = `${city.name}, ${city.state} — ${lms.length} monitored landmarks`;
+            document.getElementById("infra-score-big").textContent = `${infraScore}%`;
+            document.getElementById("sum-green").textContent = lms.filter(l => l.status === "green").length;
+            document.getElementById("sum-yellow").textContent = lms.filter(l => l.status === "yellow").length;
+            document.getElementById("sum-red").textContent = lms.filter(l => l.status === "red").length;
+            document.getElementById("sum-total").textContent = lms.length;
+
+            renderCards(lms);
+        });
+
+        let allLandmarks = [];
+        function renderCards(lms) {
+            allLandmarks = lms;
+            const grid = document.getElementById("services-grid");
+            grid.innerHTML = "";
+            lms.forEach((lm, i) => {
+                const col = lm.status;
+                const repClass = col === "red" ? "bg-red" : col === "yellow" ? "bg-yellow" : "bg-green";
+                const card = document.createElement("div");
+                card.className = `service-card ${col}`;
+                card.dataset.cat = lm.category;
+                card.style.animationDelay = `${i * 50}ms`;
+                card.innerHTML = `
+      <div class="sc-top">
+        <div class="sc-icon-name">
+          <div class="sc-icon">${lm.icon}</div>
+          <div>
+            <div class="sc-name">${lm.name}</div>
+            <div class="sc-cat">${lm.category}</div>
+          </div>
+        </div>
+        <span class="sc-reports badge ${repClass}">${lm.reports} reports</span>
+      </div>
+      <div class="sc-auth">🏛️ ${lm.authority} &nbsp;·&nbsp; 🕒 ${lm.lastUpdated}</div>
+      <div style="margin-bottom:10px">
+        <div class="progress-track"><div class="progress-fill ${getProgressClass(lm.status === "green" ? 85 : lm.status === "yellow" ? 50 : 20)}" style="width:${lm.status === "green" ? 85 : lm.status === "yellow" ? 50 : 20}%"></div></div>
+      </div>
+      <div class="sc-actions">
+        <a href="map.html" class="btn btn-ghost btn-sm">🗺️ View on Map</a>
+        <a href="complaints.html" class="btn btn-outline btn-sm">💬 Report Issue</a>
+      </div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterCards(btn, cat) {
+            document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+            btn.classList.add("active");
+            const filtered = cat === "all" ? allLandmarks : allLandmarks.filter(l => l.category === cat);
+            renderCards(filtered);
+        }
+    </script>
+</body>
+
+</html>

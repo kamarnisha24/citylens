@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityLens — Complaints & Feedback</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+
+<body class="dashboard-body" style="overflow-y:auto">
+    <div id="toast-container"></div>
+
+    <style>
+        .page-main {
+            min-height: 100vh;
+            padding: 120px 24px 40px;
+            background: var(--bg);
+        }
+
+        .complaints-layout {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+        }
+
+        .page-h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .page-sub {
+            font-size: 14px;
+            color: var(--gray-text);
+            margin-bottom: 24px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .feeds-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .complaint-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 16px 18px;
+            transition: var(--transition);
+            animation: fadeInUp .3s ease both;
+        }
+
+        .complaint-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--blue-mid);
+        }
+
+        .complaint-card.border-red {
+            border-left: 4px solid var(--red);
+        }
+
+        .complaint-card.border-yellow {
+            border-left: 4px solid var(--yellow);
+        }
+
+        .complaint-card.border-green {
+            border-left: 4px solid var(--green);
+        }
+
+        .cc-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .cc-landmark {
+            font-weight: 700;
+            color: var(--blue-dark);
+            font-size: 13px;
+        }
+
+        .cc-sev {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-weight: 700;
+        }
+
+        .cc-text {
+            font-size: 14px;
+            line-height: 1.55;
+            margin-bottom: 10px;
+        }
+
+        .cc-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cc-meta {
+            font-size: 12px;
+            color: var(--gray-text);
+        }
+
+        .vote-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 100px;
+            border: 1.5px solid var(--gray-200);
+            background: var(--white);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .vote-btn:hover {
+            border-color: var(--blue-mid);
+            background: var(--blue-light);
+            color: var(--blue-dark);
+        }
+
+        .vote-btn.voted {
+            background: var(--blue-dark);
+            color: white;
+            border-color: var(--blue-dark);
+        }
+
+        .form-panel {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            position: sticky;
+            top: 120px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .form-panel h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tabs-toggle {
+            display: flex;
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .tab-toggle-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--gray-text);
+            transition: var(--transition);
+        }
+
+        .tab-toggle-btn.active {
+            background: var(--blue-dark);
+            color: white;
+        }
+
+        .notif-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .notif-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        @media(max-width:800px) {
+            .complaints-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .form-panel {
+                position: static;
+            }
+        }
+    </style>
+
+    <div class="page-main">
+        <div style="max-width:1100px;margin:0 auto">
+            <div class="page-h1">💬 Complaints &amp; Feedback</div>
+            <div class="page-sub" id="page-sub">Loading city data…</div>
+        </div>
+        <div class="complaints-layout">
+            <!-- Left: Feed -->
+            <div>
+                <div class="filter-row">
+                    <button class="filter-chip active" onclick="applyFilter(this,'all')">All</button>
+                    <button class="filter-chip" onclick="applyFilter(this,'open')">🔴 Open</button>
+                    <button class="filter-chip" onclick="applyFilter(this,'in-review')">🟡 In Review</button>
+                    <button class="filter-chip" onclick="applyFilter(this,'resolved')">🟢 Resolved</button>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <div style="font-size:14px;font-weight:600;color:var(--gray-text)" id="feed-count">Loading…</div>
+                    <select class="input" style="width:auto;padding:6px 12px;font-size:13px"
+                        onchange="sortFeed(this.value)" id="sort-sel">
+                        <option value="votes">Most Voted</option>
+                        <option value="newest">Newest</option>
+                    </select>
+                </div>
+                <div class="feeds-list" id="feeds-list"></div>
+                <!-- Suggestions section -->
+                <div style="margin-top:32px">
+                    <div
+                        style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px;color:var(--dark)">
+                        💡 Community Suggestions</div>
+                    <div class="feeds-list" id="suggestions-list"></div>
+                </div>
+            </div>
+
+            <!-- Right: Form Panel -->
+            <div>
+                <div class="form-panel">
+                    <div class="tabs-toggle">
+                        <button class="tab-toggle-btn active" id="tab-complaint" onclick="setFormTab('complaint')">📝
+                            Complaint</button>
+                        <button class="tab-toggle-btn" id="tab-suggestion" onclick="setFormTab('suggestion')">💡
+                            Suggestion</button>
+                    </div>
+
+                    <div id="form-complaint">
+                        <h3>📝 Submit Complaint</h3>
+                        <div class="form-group">
+                            <label class="form-label" for="c-landmark">Landmark Name</label>
+                            <input type="text" class="input" id="c-landmark" placeholder="e.g. MG Road, Central Park…">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <div class="radio-group">
+                                <label class="radio-option"><input type="radio" name="c-cat" value="Infrastructure"
+                                        checked><span>Infrastructure</span></label>
+                                <label class="radio-option"><input type="radio" name="c-cat"
+                                        value="Environment"><span>Environment</span></label>
+                                <label class="radio-option"><input type="radio" name="c-cat"
+                                        value="Sanitation"><span>Sanitation</span></label>
+                                <label class="radio-option"><input type="radio" name="c-cat"
+                                        value="Public Safety"><span>Safety</span></label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Severity</label>
+                            <div class="radio-group">
+                                <label class="radio-option"><input type="radio" name="c-sev" value="low"><span>🟢
+                                        Low</span></label>
+                                <label class="radio-option"><input type="radio" name="c-sev" value="medium"
+                                        checked><span>🟡 Medium</span></label>
+                                <label class="radio-option"><input type="radio" name="c-sev" value="high"><span>🔴
+                                        High</span></label>
+                                <label class="radio-option"><input type="radio" name="c-sev" value="critical"><span>⚠️
+                                        Critical</span></label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="c-desc">Description</label>
+                            <textarea class="input" id="c-desc" rows="4"
+                                placeholder="Describe the issue clearly…"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="photo-upload-drop" for="c-photos">
+                                <span>📷 Attach photo (optional)</span>
+                                <input type="file" id="c-photos" accept="image/*" style="display:none"
+                                    onchange="previewFile(event,'c-prev')">
+                            </label>
+                            <div id="c-prev" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"></div>
+                        </div>
+                        <button class="btn btn-primary btn-full" onclick="submitComplaint()">✅ Submit Complaint</button>
+                    </div>
+
+                    <div id="form-suggestion" style="display:none">
+                        <h3>💡 Submit Suggestion</h3>
+                        <div class="form-group">
+                            <label class="form-label" for="s-landmark">Landmark Name (optional)</label>
+                            <input type="text" class="input" id="s-landmark" placeholder="e.g. KR Market…">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="s-title">Title</label>
+                            <input class="input" id="s-title" type="text" placeholder="Short title for your idea…">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="s-desc">Your Idea</label>
+                            <textarea class="input" id="s-desc" rows="4"
+                                placeholder="Describe your improvement idea…"></textarea>
+                        </div>
+                        <button class="btn btn-success btn-full" onclick="submitSuggestion()">✅ Submit
+                            Suggestion</button>
+                    </div>
+
+                    <!-- Notifications -->
+                    <hr class="divider" />
+                    <div
+                        style="font-size:13px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">
+                        🔔 Recent Alerts</div>
+                    <div id="notif-mini">
+                        <div class="notif-item"><span class="notif-dot" style="background:var(--red)"></span>
+                            <div>
+                                <div style="font-size:13px">Lal Nagar Bridge — Critical, 47 votes</div>
+                                <div style="font-size:11px;color:var(--gray-text)">2 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="notif-item"><span class="notif-dot" style="background:var(--yellow)"></span>
+                            <div>
+                                <div style="font-size:13px">Anna Nagar Road repair scheduled</div>
+                                <div style="font-size:11px;color:var(--gray-text)">1 day ago</div>
+                            </div>
+                        </div>
+                        <div class="notif-item"><span class="notif-dot" style="background:var(--green)"></span>
+                            <div>
+                                <div style="font-size:13px">Cubbon Park issue resolved ✅</div>
+                                <div style="font-size:11px;color:var(--gray-text)">2 days ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/shared.js"></script>
+    <script>
+        let lComplaints = [...COMPLAINTS];
+        let lSuggestions = [...SUGGESTIONS];
+        let curFilter = "all";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            injectSharedNavCSS(); injectNav(); injectPageNav();
+            const city = getCity();
+            document.getElementById("page-sub").textContent = `${city.name}, ${city.state} — ${lComplaints.length} active issues, ${lSuggestions.length} suggestions`;
+            renderFeed();
+            renderSuggestions();
+        });
+
+        function setFormTab(tab) {
+            document.getElementById("form-complaint").style.display = tab === "complaint" ? "block" : "none";
+            document.getElementById("form-suggestion").style.display = tab === "suggestion" ? "block" : "none";
+            document.getElementById("tab-complaint").classList.toggle("active", tab === "complaint");
+            document.getElementById("tab-suggestion").classList.toggle("active", tab === "suggestion");
+        }
+
+        function populateDropdowns(city) {
+            const lms = LANDMARKS[city.id] || [];
+            ["c-landmark", "s-landmark"].forEach(id => {
+                const sel = document.getElementById(id); if (!sel) return;
+                sel.innerHTML = `<option value="">— Select landmark —</option>`;
+                lms.forEach(lm => { const o = document.createElement("option"); o.value = lm.id; o.textContent = `${lm.icon} ${lm.name}`; sel.appendChild(o); });
+            });
+        }
+
+        function applyFilter(btn, f) {
+            curFilter = f;
+            document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+            btn.classList.add("active");
+            renderFeed();
+        }
+
+        function sortFeed(val) { renderFeed(val); }
+
+        function renderFeed(sort) {
+            const sel = document.getElementById("sort-sel");
+            const s = sort || sel?.value || "votes";
+            let list = curFilter === "all" ? [...lComplaints] : lComplaints.filter(c => c.status === curFilter);
+            if (s === "votes") list.sort((a, b) => b.votes - a.votes);
+            document.getElementById("feed-count").textContent = `${list.length} complaint${list.length !== 1 ? "s" : ""}`;
+            const container = document.getElementById("feeds-list");
+            container.innerHTML = "";
+            list.forEach((c, i) => {
+                const brdClass = c.color === "red" ? "border-red" : c.color === "yellow" ? "border-yellow" : "border-green";
+                const stsClass = c.status === "open" ? "bg-red" : c.status === "in-review" ? "bg-yellow" : "bg-green";
+                const stsText = c.status === "open" ? "Open" : c.status === "in-review" ? "In Review" : "Resolved";
+                const div = document.createElement("div");
+                div.className = `complaint-card ${brdClass}`;
+                div.style.animationDelay = `${i * 50}ms`;
+                div.innerHTML = `
+      <div class="cc-top">
+        <div>
+          <div class="cc-landmark">📍 ${c.landmark}</div>
+          <div style="font-size:12px;color:var(--gray-text);margin-top:2px">🏷️ ${c.category}</div>
+        </div>
+        <span class="cc-sev badge ${stsClass}">${stsText}</span>
+      </div>
+      <div class="cc-text">${c.text}</div>
+      <div class="cc-bottom">
+        <div class="cc-meta">🕒 ${c.time}</div>
+        <button class="vote-btn" id="v-${c.id}" onclick="vote('${c.id}')">▲ ${c.votes} votes</button>
+      </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function vote(id) {
+            const c = lComplaints.find(x => x.id === id); if (!c) return;
+            c.votes++;
+            const btn = document.getElementById(`v-${id}`);
+            if (btn) { btn.classList.add("voted"); btn.textContent = `▲ ${c.votes} votes`; }
+            if (c.votes === 25) showToast(`🚨 ${c.landmark} flagged to authorities! (25 votes)`, "error");
+        }
+
+        function renderSuggestions() {
+            const container = document.getElementById("suggestions-list");
+            lSuggestions.forEach((s, i) => {
+                const div = document.createElement("div");
+                div.className = "complaint-card border-green";
+                div.style.animationDelay = `${i * 50}ms`;
+                div.innerHTML = `
+      <div class="cc-top">
+        <div class="cc-landmark">💡 ${s.landmark}</div>
+        <span class="badge bg-blue" style="font-size:11px">${s.category}</span>
+      </div>
+      <div class="cc-text">${s.text}</div>
+      <div class="cc-bottom">
+        <div class="cc-meta">${s.time}</div>
+        <button class="vote-btn" id="sv-${s.id}" onclick="voteS('${s.id}')">▲ ${s.votes}</button>
+      </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function voteS(id) {
+            const s = lSuggestions.find(x => x.id === id); if (!s) return;
+            s.votes++;
+            const btn = document.getElementById(`sv-${id}`);
+            if (btn) { btn.classList.add("voted"); btn.textContent = `▲ ${s.votes}`; }
+        }
+
+        function submitComplaint() {
+            const desc = document.getElementById("c-desc")?.value?.trim();
+            const lm = document.getElementById("c-landmark")?.value?.trim() || "City Area";
+            const sev = document.querySelector('input[name="c-sev"]:checked')?.value || "medium";
+            const cat = document.querySelector('input[name="c-cat"]:checked')?.value || "Infrastructure";
+            if (!desc) { showToast("Please describe the issue.", "error"); return; }
+            lComplaints.unshift({ id: `c${Date.now()}`, landmark: lm, category: cat, severity: sev, text: desc, votes: 0, time: "just now", status: "open", color: sev === "critical" || sev === "high" ? "red" : "yellow" });
+            document.getElementById("c-desc").value = "";
+            document.getElementById("c-prev").innerHTML = "";
+            renderFeed();
+            showToast("✅ Complaint submitted successfully!", "success");
+        }
+
+        function submitSuggestion() {
+            const desc = document.getElementById("s-desc")?.value?.trim();
+            const title = document.getElementById("s-title")?.value?.trim();
+            const lm = document.getElementById("s-landmark")?.value?.trim() || "City (General)";
+            if (!desc) { showToast("Please describe your suggestion.", "error"); return; }
+            lSuggestions.unshift({ id: `s${Date.now()}`, landmark: lm, category: "General", text: title ? `${title}: ${desc}` : desc, votes: 0, time: "just now" });
+            document.getElementById("s-desc").value = ""; document.getElementById("s-title").value = "";
+            setFormTab("complaint");
+            renderSuggestions();
+            showToast("💡 Suggestion submitted! Thank you.", "success");
+        }
+
+        function previewFile(ev, prevId) {
+            const c = document.getElementById(prevId); c.innerHTML = "";
+            Array.from(ev.target.files).forEach(f => { const img = document.createElement("img"); img.src = URL.createObjectURL(f); img.style.cssText = "width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--blue-mid)"; c.appendChild(img); });
+        }
+    </script>
+</body>
+
+</html>

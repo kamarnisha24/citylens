@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityLens — City Lens Hotspots</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body class="dashboard-body" style="overflow:hidden">
+    <div id="toast-container"></div>
+
+    <style>
+        .lens-sidebar {
+            position: fixed;
+            top: 108px;
+            right: 0;
+            width: 320px;
+            height: calc(100vh - 108px);
+            background: var(--card-bg);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-xl);
+            color: var(--dark);
+        }
+
+        .lens-sidebar-header {
+            padding: 20px 18px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+        }
+
+        .lens-sidebar-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .lens-sidebar-header p {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .lens-filter-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            background: var(--modal-bg);
+        }
+
+        .lens-filter-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+            text-align: left;
+        }
+
+        .lens-filter-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .lens-filter-btn.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3B82F6;
+            border-left-color: #3B82F6;
+        }
+
+        .lens-hotspot-list {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            background: var(--card-bg);
+        }
+
+        .hotspot-card {
+            background: var(--modal-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .hotspot-card:hover {
+            border-color: var(--blue-mid);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .hotspot-card.hc-red {
+            border-left: 4px solid var(--red);
+        }
+
+        .hotspot-card.hc-yellow {
+            border-left: 4px solid var(--yellow);
+        }
+
+        .hotspot-card.hc-green {
+            border-left: 4px solid var(--green);
+        }
+
+        .hc-name {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: #f8fafc;
+        }
+
+        .hc-meta {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .lens-legend-panel {
+            padding: 18px;
+            border-top: 1px solid var(--border);
+            background: var(--modal-bg);
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #94a3b8;
+        }
+
+        .legend-circle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        @media(max-width:900px) {
+            .lens-sidebar {
+                display: none;
+            }
+
+            #map-wrapper {
+                right: 0 !important;
+            }
+        }
+    </style>
+
+    <!-- Lens Sidebar -->
+    <div class="lens-sidebar" id="lens-sidebar">
+        <div class="lens-sidebar-header">
+            <h2>🔍 City Lens</h2>
+            <p id="lens-city-name">Hotspot analysis overlay</p>
+        </div>
+        <div class="lens-filter-btns">
+            <button class="lens-filter-btn active" onclick="setLensFilter(this,'all')">🗺️ All Issues</button>
+            <button class="lens-filter-btn" onclick="setLensFilter(this,'infrastructure')">🏗️ Infrastructure</button>
+            <button class="lens-filter-btn" onclick="setLensFilter(this,'environment')">🌿 Environment &amp;
+                Sanitation</button>
+            <button class="lens-filter-btn" onclick="setLensFilter(this,'governance')">🏛️ Governance &amp;
+                Services</button>
+            <button class="lens-filter-btn" onclick="setLensFilter(this,'engagement')">💬 Citizen Engagement</button>
+        </div>
+        <div style="padding:16px 18px;background:var(--modal-bg);border-bottom:1px solid var(--border)">
+            <div
+                style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-mid);margin-bottom:12px">
+                TOP PROBLEM ZONES</div>
+            <div class="hotspot-card hc-red">
+                <div class="hc-name">Lal Nagar Bridge area</div>
+                <div class="hc-meta">47 complaints · Critical Stage</div>
+            </div>
+            <div class="hotspot-card hc-yellow">
+                <div class="hc-name">Anna Nagar Sector 7</div>
+                <div class="hc-meta">23 complaints · Road Issue</div>
+            </div>
+        </div>
+        <div class="lens-hotspot-list">
+            <div
+                style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-text);margin-bottom:10px">
+                ALL ZONES</div>
+            <div id="zones-list"></div>
+        </div>
+        <div class="lens-legend-panel">
+            <div
+                style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-text);margin-bottom:10px">
+                LEGEND</div>
+            <div class="legend-row"><span class="legend-circle" style="background:var(--red)"></span> Critical zone (15+
+                complaints)</div>
+            <div class="legend-row"><span class="legend-circle" style="background:var(--yellow)"></span> Moderate zone
+                (5–15 complaints)</div>
+            <div class="legend-row"><span class="legend-circle" style="background:var(--green)"></span> Healthy zone
+                (&lt;5 issues)</div>
+            <a href="trends.html" class="btn btn-outline btn-sm btn-full" style="margin-top:10px">📊 View Full
+                Trends</a>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/shared.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let leafMap, allCircles = [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            injectSharedNavCSS(); injectNav(); injectPageNav();
+
+            const city = getCity();
+            const landmarks = LANDMARKS[city.id] || [];
+
+            document.getElementById("lens-city-name").textContent = `${city.name}, ${city.state}`;
+
+            // Map fills left area (to left of sidebar)
+            const mapWrap = document.createElement("div");
+            mapWrap.id = "map-wrapper";
+            mapWrap.style.cssText = "position:fixed;top:108px;left:0;right:320px;bottom:0;z-index:1;background:#000";
+            document.body.appendChild(mapWrap);
+
+            const mapDiv = document.createElement("div");
+            mapDiv.id = "lens-map";
+            mapDiv.style.cssText = "width:100%;height:100%";
+            mapWrap.appendChild(mapDiv);
+
+            // Activated filter bar
+            const bar = document.createElement("div");
+            bar.style.cssText = "position:absolute;top:0;left:0;right:0;z-index:500;background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);color:#f8fafc;padding:12px 20px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.08)";
+            bar.innerHTML = `<span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#3B82F6;border-radius:50%;display:inline-block;box-shadow:0 0 10px #3B82F6"></span> City Lens Activated</span> <span style="opacity:0.6;font-size:12px;font-weight:400;border-left:1px solid rgba(255,255,255,0.2);padding-left:12px">Thermal hotspot analysis showing problem density Z-Alpha Version</span>`;
+            mapWrap.appendChild(bar);
+
+            leafMap = L.map(mapDiv, { center: [city.lat, city.lng], zoom: 14 });
+            // Premium Dark Matter tiles for City Lens
+            L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap / CartoDB", maxZoom: 19 }).addTo(leafMap);
+
+            // Add regular markers (dimmed)
+            landmarks.forEach(lm => {
+                const icon = L.divIcon({ className: "", html: `<div style="width:24px;height:24px;border-radius:50%;background:rgba(100,100,100,.3);border:2px solid rgba(100,100,100,.5);display:flex;align-items:center;justify-content:center;font-size:12px">${lm.icon}</div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+                L.marker([lm.lat, lm.lng], { icon }).addTo(leafMap)
+                    .bindTooltip(`<strong>${lm.name}</strong>`, { className: "map-tooltip", direction: "top" });
+            });
+
+            // Lens circles
+            renderLensCircles(landmarks, "all");
+
+            // Zones list
+            const zonesList = document.getElementById("zones-list");
+            landmarks.forEach(lm => {
+                const cls = `hc-${lm.status}`;
+                const label = lm.status === "red" ? "🔴" : lm.status === "yellow" ? "🟡" : "🟢";
+                const div = document.createElement("div");
+                div.className = `hotspot-card ${cls}`;
+                div.onclick = () => leafMap.setView([lm.lat, lm.lng], 16);
+                div.innerHTML = `<div class="hc-name">${label} ${lm.name}</div><div class="hc-meta">${lm.reports} reports · ${lm.category}</div>`;
+                zonesList.appendChild(div);
+            });
+        });
+
+        function renderLensCircles(landmarks, filter) {
+            allCircles.forEach(c => leafMap.removeLayer(c));
+            allCircles = [];
+
+            const catMap = {
+                infrastructure: ["Bridges", "Roads & Highways", "Public Amenities"],
+                environment: ["Parks & Green Spaces", "Markets & Commerce"],
+                governance: ["Government Offices", "Schools & Colleges", "Hospitals"],
+                engagement: null,
+            };
+
+            landmarks.forEach(lm => {
+                if (filter !== "all" && filter !== "engagement") {
+                    const cats = catMap[filter] || [];
+                    if (!cats.includes(lm.category)) return;
+                }
+                const color = lm.status === "red" ? "#E74C3C" : lm.status === "yellow" ? "#FFC107" : "#28A745";
+                const radius = lm.status === "red" ? 320 : lm.status === "yellow" ? 220 : 150;
+                const c = L.circle([lm.lat, lm.lng], { color, fillColor: color, fillOpacity: .2, weight: 2, opacity: .6, radius })
+                    .addTo(leafMap)
+                    .bindTooltip(`<strong>${lm.icon} ${lm.name}</strong><br>${lm.status === "red" ? "🔴 Critical Zone" : lm.status === "yellow" ? "🟡 Moderate Zone" : "🟢 Healthy Zone"}<br><small>${lm.reports} active reports</small>`, { className: "map-tooltip" });
+                allCircles.push(c);
+            });
+        }
+
+        function setLensFilter(btn, filter) {
+            document.querySelectorAll(".lens-filter-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const city = getCity();
+            renderLensCircles(LANDMARKS[city.id] || [], filter);
+            showToast(`🔍 Showing: ${btn.textContent.trim()}`, "info");
+        }
+    </script>
+</body>
+
+</html>

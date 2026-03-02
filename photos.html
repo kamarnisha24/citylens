@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityLens — Photo & Media</title>
+    <meta name="description"
+        content="Upload and browse city issue photos linked to landmarks. Click any photo to open the full zoomable lightbox with citizen comments." />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+</head>
+
+<body class="dashboard-body" style="overflow-y:auto">
+    <div id="toast-container"></div>
+
+    <!-- ══════════════════════════════════════════
+         PHOTO LIGHTBOX (full-page overlay)
+    ══════════════════════════════════════════ -->
+    <div class="photo-lightbox-overlay" id="photo-lightbox-overlay" onclick="lbClickOut(event)">
+        <div class="photo-lightbox" id="photo-lightbox">
+
+            <div class="lb-header">
+                <div class="lb-header-left">
+                    <div class="lb-landmark-name" id="lb-landmark-name">Landmark</div>
+                    <div class="lb-photo-title" id="lb-photo-title">Photo Title</div>
+                </div>
+                <button class="lb-close-btn" onclick="closeLightbox()">✕</button>
+            </div>
+
+            <div class="lb-stage" id="lb-stage">
+                <div class="lb-severity-bar" id="lb-sev-bar"></div>
+                <div class="lb-photo-display" id="lb-photo-display">📷</div>
+
+                <button class="lb-nav-btn prev" id="lb-prev-btn" onclick="lbNavigate(-1)">‹</button>
+                <button class="lb-nav-btn next" id="lb-next-btn" onclick="lbNavigate(1)">›</button>
+
+                <div class="lb-dots" id="lb-dots"></div>
+
+                <div class="lb-zoom-controls">
+                    <button class="lb-zoom-btn" onclick="lbZoom(-1)" title="Zoom out">−</button>
+                    <button class="lb-zoom-btn" onclick="lbZoom(1)" title="Zoom in">+</button>
+                    <button class="lb-zoom-btn" onclick="lbResetZoom()" title="Reset zoom"
+                        style="font-size:13px">⊙</button>
+                </div>
+
+                <button class="lb-fullscreen-btn" onclick="lbFullscreen()" title="Fullscreen">⛶</button>
+            </div>
+
+            <div class="lb-info-row">
+                <span class="lb-severity-pill" id="lb-sev-pill"></span>
+                <span class="lb-type-pill" id="lb-type-pill"></span>
+                <span class="lb-uploader" id="lb-uploader"></span>
+            </div>
+
+            <div class="lb-caption" id="lb-caption"></div>
+
+            <div class="lb-thumb-strip" id="lb-thumb-strip"></div>
+
+            <div class="lb-comments-section">
+                <div class="lb-comments-label">💬 Citizen Comments</div>
+                <div id="lb-comments-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* ══ Page Layout ══ */
+        .page-main {
+            min-height: 100vh;
+            padding: 120px 24px 40px;
+            background: var(--bg);
+        }
+
+        .photos-layout {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+        }
+
+        /* Hero */
+        .photo-hero {
+            background: linear-gradient(135deg, #0f172a, #1F3B6F 60%, #1a1a2e);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 28px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .photo-hero::before {
+            content: "📸";
+            position: absolute;
+            right: 28px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 80px;
+            opacity: .12;
+        }
+
+        .photo-hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .photo-hero p {
+            opacity: .75;
+            font-size: 14px;
+        }
+
+        /* Stats row inside hero */
+        .hero-stats {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .hero-stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .hero-stat-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: white;
+            line-height: 1;
+        }
+
+        .hero-stat-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, .55);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* Upload panel */
+        .upload-area {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            position: sticky;
+            top: 120px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .upload-area h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            border: 2.5px dashed var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--blue-mid);
+            background: var(--blue-light);
+        }
+
+        .drop-zone-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .drop-zone-text {
+            font-size: 14px;
+            color: var(--gray-text);
+            margin-bottom: 4px;
+        }
+
+        .drop-zone-sub {
+            font-size: 12px;
+            color: var(--gray-400);
+        }
+
+        /* Gallery grid */
+        .photo-gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        /* ── Photo Card ── */
+        .photo-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+            animation: fadeInUp .3s ease both;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .photo-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-4px);
+            border-color: var(--blue-mid);
+        }
+
+        .photo-card:hover .photo-open-hint {
+            opacity: 1;
+        }
+
+        /* Severity left border accent */
+        .photo-card.sev-red {
+            border-left: 3px solid var(--red);
+        }
+
+        .photo-card.sev-yellow {
+            border-left: 3px solid var(--yellow);
+        }
+
+        .photo-card.sev-green {
+            border-left: 3px solid var(--green);
+        }
+
+        /* Open hint overlay */
+        .photo-open-hint {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, .55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity .2s;
+            border-radius: calc(var(--radius-lg) - 2px);
+        }
+
+        .photo-open-hint span {
+            background: rgba(255, 255, 255, .15);
+            backdrop-filter: blur(8px);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 18px;
+            border-radius: 100px;
+            border: 1px solid rgba(255, 255, 255, .25);
+        }
+
+        .photo-thumb-large {
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 56px;
+            background: var(--gray-100);
+        }
+
+        .photo-thumb-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-card-body {
+            padding: 12px 14px;
+        }
+
+        .photo-card-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .photo-card-meta {
+            font-size: 12px;
+            color: var(--gray-text);
+        }
+
+        .type-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 100px;
+            display: inline-block;
+            margin-top: 6px;
+        }
+
+        .type-before {
+            background: var(--red-light);
+            color: var(--red);
+        }
+
+        .type-after {
+            background: var(--green-light);
+            color: var(--green);
+        }
+
+        .type-general {
+            background: var(--blue-light);
+            color: var(--blue-dark);
+        }
+
+        .preview-uploaded {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .preview-uploaded img {
+            width: 52px;
+            height: 52px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid var(--blue-mid);
+        }
+
+        /* ══ Lightbox Styles ══ */
+        .photo-lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .92);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s ease;
+            backdrop-filter: blur(6px);
+        }
+
+        .photo-lightbox-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .photo-lightbox {
+            background: #0f172a;
+            border-radius: 20px;
+            width: min(94vw, 940px);
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 32px 80px rgba(0, 0, 0, .8);
+            border: 1px solid rgba(255, 255, 255, .08);
+            animation: lbIn .3s cubic-bezier(.34, 1.56, .64, 1) both;
+        }
+
+        @keyframes lbIn {
+            from {
+                transform: scale(.88) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0px);
+                opacity: 1;
+            }
+        }
+
+        .lb-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .lb-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .lb-landmark-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, .5);
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .lb-photo-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .lb-close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .1);
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+            transition: background .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lb-close-btn:hover {
+            background: rgba(255, 255, 255, .22);
+        }
+
+        .lb-stage {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            cursor: zoom-in;
+            background: #070d1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lb-stage.zoomed {
+            cursor: zoom-out;
+        }
+
+        .lb-photo-display {
+            width: 100%;
+            height: 340px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 110px;
+            transition: transform .35s cubic-bezier(.25, .46, .45, .94);
+            transform-origin: center center;
+            user-select: none;
+        }
+
+        .lb-photo-display.has-img {
+            font-size: 0;
+        }
+
+        .lb-photo-display img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .lb-severity-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .lb-severity-bar.red {
+            background: linear-gradient(90deg, #E74C3C, #c0392b);
+        }
+
+        .lb-severity-bar.yellow {
+            background: linear-gradient(90deg, #FFC107, #e67e22);
+        }
+
+        .lb-severity-bar.green {
+            background: linear-gradient(90deg, #28A745, #1abc9c);
+        }
+
+        .lb-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .2);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s, transform .2s;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        .lb-nav-btn:hover {
+            background: rgba(255, 255, 255, .25);
+            transform: translateY(-50%) scale(1.08);
+        }
+
+        .lb-nav-btn.prev {
+            left: 12px;
+        }
+
+        .lb-nav-btn.next {
+            right: 12px;
+        }
+
+        .lb-nav-btn:disabled {
+            opacity: .3;
+            pointer-events: none;
+        }
+
+        .lb-zoom-controls {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .lb-zoom-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, .6);
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s;
+        }
+
+        .lb-zoom-btn:hover {
+            background: rgba(255, 255, 255, .2);
+        }
+
+        .lb-dots {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+        }
+
+        .lb-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .3);
+            transition: background .2s, width .2s;
+            cursor: pointer;
+        }
+
+        .lb-dot.active {
+            background: white;
+            width: 20px;
+            border-radius: 10px;
+        }
+
+        .lb-fullscreen-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, .5);
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s;
+        }
+
+        .lb-fullscreen-btn:hover {
+            background: rgba(255, 255, 255, .2);
+        }
+
+        .lb-info-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255, 255, 255, .07);
+            flex-wrap: wrap;
+        }
+
+        .lb-severity-pill {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 100px;
+            letter-spacing: .04em;
+        }
+
+        .lb-sev-red {
+            background: rgba(231, 76, 60, .2);
+            color: #f97066;
+        }
+
+        .lb-sev-yellow {
+            background: rgba(255, 193, 7, .18);
+            color: #ffc107;
+        }
+
+        .lb-sev-green {
+            background: rgba(40, 167, 69, .18);
+            color: #4ade80;
+        }
+
+        .lb-type-pill {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .6);
+        }
+
+        .lb-uploader {
+            font-size: 12px;
+            color: rgba(255, 255, 255, .45);
+            margin-left: auto;
+        }
+
+        .lb-caption {
+            padding: 0 20px 14px;
+            font-size: 13.5px;
+            color: rgba(255, 255, 255, .72);
+            line-height: 1.6;
+        }
+
+        .lb-thumb-strip {
+            display: flex;
+            gap: 8px;
+            padding: 10px 20px 14px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, .2) transparent;
+            border-top: 1px solid rgba(255, 255, 255, .06);
+        }
+
+        .lb-thumb {
+            width: 58px;
+            height: 50px;
+            border-radius: 9px;
+            flex-shrink: 0;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: border .2s, transform .2s;
+            overflow: hidden;
+        }
+
+        .lb-thumb.active {
+            border-color: #3b82f6;
+            transform: scale(1.05);
+        }
+
+        .lb-thumb:hover {
+            border-color: rgba(255, 255, 255, .4);
+        }
+
+        .lb-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .lb-comments-section {
+            padding: 0 20px 4px;
+            border-top: 1px solid rgba(255, 255, 255, .07);
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .lb-comments-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            color: rgba(255, 255, 255, .4);
+            text-transform: uppercase;
+            padding: 12px 0 8px;
+        }
+
+        .lb-comment-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: flex-start;
+        }
+
+        .lb-comment-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .lb-comment-author {
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .8);
+        }
+
+        .lb-comment-text {
+            font-size: 12.5px;
+            color: rgba(255, 255, 255, .55);
+            margin-top: 2px;
+            line-height: 1.5;
+        }
+
+        .lb-comment-meta {
+            font-size: 11px;
+            color: rgba(255, 255, 255, .3);
+            margin-top: 3px;
+        }
+
+        @media(max-width:800px) {
+            .photos-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .upload-area {
+                position: static;
+            }
+        }
+    </style>
+
+    <!-- Hero -->
+    <div class="page-main" style="max-width:1100px;margin:0 auto">
+        <div class="photo-hero">
+            <h1>📷 Photo &amp; Media Submission</h1>
+            <p id="photo-sub">Upload photos linked to landmarks. Track before &amp; after improvements visually.</p>
+            <div class="hero-stats">
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" id="stat-total">8</div>
+                    <div class="hero-stat-label">Total Photos</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" id="stat-before" style="color:#f97066">5</div>
+                    <div class="hero-stat-label">Before</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" id="stat-after" style="color:#4ade80">1</div>
+                    <div class="hero-stat-label">After</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-value" id="stat-crit" style="color:#fbbf24">2</div>
+                    <div class="hero-stat-label">Critical</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-main" style="padding-top:0">
+        <div class="photos-layout">
+
+            <!-- Gallery -->
+            <div>
+                <div
+                    style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+                    <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:700">📸 Photo Gallery
+                        <span id="gallery-count"
+                            style="font-size:14px;font-weight:400;color:var(--gray-text);margin-left:6px"></span>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <button class="filter-chip active" id="fc-all" onclick="filterPhotos(this,'all')">All</button>
+                        <button class="filter-chip" id="fc-before" onclick="filterPhotos(this,'before')">📸
+                            Before</button>
+                        <button class="filter-chip" id="fc-after" onclick="filterPhotos(this,'after')">✅ After</button>
+                        <button class="filter-chip" id="fc-general" onclick="filterPhotos(this,'general')">📷
+                            General</button>
+                        <button class="filter-chip" id="fc-red" onclick="filterPhotos(this,'sev-red')">🔴
+                            Critical</button>
+                        <button class="filter-chip" id="fc-yellow" onclick="filterPhotos(this,'sev-yellow')">🟡
+                            Moderate</button>
+                        <button class="filter-chip" id="fc-green" onclick="filterPhotos(this,'sev-green')">🟢
+                            Minor</button>
+                    </div>
+                </div>
+
+                <!-- "View on Map" shortcut -->
+                <div
+                    style="display:flex;align-items:center;gap:10px;background:var(--blue-light);border:1px solid var(--blue-mid);border-radius:var(--radius-md);padding:10px 16px;margin-bottom:18px">
+                    <span style="font-size:20px">🗺️</span>
+                    <span style="font-size:13px;font-weight:600;color:var(--blue-dark)">See all photo markers directly
+                        on the interactive city map</span>
+                    <button class="btn btn-primary btn-sm" style="margin-left:auto"
+                        onclick="location.href='map.html'">Open Map →</button>
+                </div>
+
+                <div class="photo-gallery-grid" id="photo-gallery"></div>
+            </div>
+
+            <!-- Upload Panel -->
+            <div class="upload-area">
+                <h3>📤 Upload a Photo</h3>
+                <div class="form-group">
+                    <label class="form-label" for="p-landmark">Landmark Name</label>
+                    <input type="text" class="input" id="p-landmark" placeholder="e.g. KR Market, Cubbon Park…">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Photo Type</label>
+                    <div class="radio-group">
+                        <label class="radio-option"><input type="radio" name="p-type" value="before" checked><span>📸
+                                Before</span></label>
+                        <label class="radio-option"><input type="radio" name="p-type" value="after"><span>✅
+                                After</span></label>
+                        <label class="radio-option"><input type="radio" name="p-type" value="general"><span>📷
+                                General</span></label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Severity</label>
+                    <div class="radio-group">
+                        <label class="radio-option"><input type="radio" name="p-sev" value="red"><span>🔴
+                                Critical</span></label>
+                        <label class="radio-option"><input type="radio" name="p-sev" value="yellow" checked><span>🟡
+                                Moderate</span></label>
+                        <label class="radio-option"><input type="radio" name="p-sev" value="green"><span>🟢
+                                Minor</span></label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="p-file">
+                        <div class="drop-zone" id="drop-zone">
+                            <div class="drop-zone-icon">📷</div>
+                            <div class="drop-zone-text">Click to choose photo</div>
+                            <div class="drop-zone-sub">JPG, PNG, WEBP · Max 10MB</div>
+                        </div>
+                        <input type="file" id="p-file" accept="image/*" style="display:none"
+                            onchange="onFileChosen(event)">
+                    </label>
+                    <div class="preview-uploaded" id="p-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="p-caption">Caption / Description</label>
+                    <input class="input" id="p-caption" type="text" placeholder="Describe what this photo shows…">
+                </div>
+                <button class="btn btn-primary btn-full" onclick="uploadPhoto()">📤 Upload Photo</button>
+                <div style="font-size:12px;color:var(--gray-text);margin-top:12px;text-align:center">
+                    Photos help authorities track issues and verify improvements.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/shared.js"></script>
+    <script>
+        // ══════════════════════════════════════════
+        //  DATA
+        // ══════════════════════════════════════════
+        // Merge PHOTO_REPORTS (from data.js) as base gallery data
+        // and add any user-uploaded photos on top.
+        let uploadedPhotos = [];
+        let allPhotos = [];
+
+        function buildAllPhotos() {
+            const base = (typeof PHOTO_REPORTS !== "undefined" ? PHOTO_REPORTS : []).map(p => ({
+                id: p.id,
+                emoji: p.emoji,
+                src: p.src || null,
+                caption: p.caption,
+                title: p.title,
+                lm: (() => {
+                    // resolve landmark name from all available LANDMARKS
+                    for (const city in LANDMARKS) {
+                        const lm = LANDMARKS[city].find(l => l.id === p.landmarkId);
+                        if (lm) return `${lm.icon} ${lm.name}`;
+                    }
+                    return "—";
+                })(),
+                landmarkId: p.landmarkId,
+                type: p.type,
+                severity: p.severity,
+                uploaded: p.uploaded,
+                uploadedBy: p.uploadedBy,
+                thumbBg: p.thumbBg,
+                comments: p.comments || [],
+            }));
+            allPhotos = [...uploadedPhotos, ...base];
+        }
+
+        // ══════════════════════════════════════════
+        //  LIGHTBOX ENGINE
+        // ══════════════════════════════════════════
+        let lbPhotos = [], lbIndex = 0, lbZoomLvl = 1, lbContextLm = "";
+        const ZOOM_MIN = 1, ZOOM_MAX = 4, ZOOM_STEP = 0.5;
+
+        function openLightbox(photos, startIndex, landmarkName) {
+            if (!photos || !photos.length) return;
+            lbPhotos = photos;
+            lbIndex = startIndex || 0;
+            lbContextLm = landmarkName || "";
+            lbZoomLvl = 1;
+            renderLightbox();
+            document.getElementById("photo-lightbox-overlay").classList.add("active");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeLightbox() {
+            document.getElementById("photo-lightbox-overlay").classList.remove("active");
+            document.body.style.overflow = "";
+            lbResetZoom();
+        }
+
+        function lbClickOut(ev) {
+            if (ev.target === document.getElementById("photo-lightbox-overlay")) closeLightbox();
+        }
+
+        function renderLightbox() {
+            const p = lbPhotos[lbIndex];
+            if (!p) return;
+
+            document.getElementById("lb-landmark-name").textContent = lbContextLm || p.lm || "Photo";
+            document.getElementById("lb-photo-title").textContent = p.title || p.caption;
+
+            // Severity bar
+            document.getElementById("lb-sev-bar").className = "lb-severity-bar " + (p.severity || "green");
+
+            // Photo display
+            const display = document.getElementById("lb-photo-display");
+            if (p.src) {
+                display.innerHTML = `<img src="${p.src}" alt="${p.caption}" draggable="false">`;
+                display.classList.add("has-img");
+                display.style.background = "";
+            } else {
+                display.innerHTML = p.emoji || "📷";
+                display.classList.remove("has-img");
+                display.style.background = p.thumbBg || "rgba(255,255,255,.05)";
+            }
+            lbResetZoom(false);
+
+            // Stage click = zoom
+            const stage = document.getElementById("lb-stage");
+            stage.onclick = null;
+            stage.onclick = (e) => {
+                if (e.target.closest(".lb-nav-btn, .lb-zoom-controls, .lb-fullscreen-btn")) return;
+                lbZoom(lbZoomLvl < ZOOM_MAX ? 1 : -999);
+            };
+
+            // Pills
+            const sevMap = { red: ["🔴 Critical", "lb-sev-red"], yellow: ["🟡 Moderate", "lb-sev-yellow"], green: ["🟢 Minor", "lb-sev-green"] };
+            const [sevLabel, sevClass] = sevMap[p.severity || "green"];
+            const pill = document.getElementById("lb-sev-pill");
+            pill.textContent = sevLabel; pill.className = "lb-severity-pill " + sevClass;
+
+            const typeLabels = { before: "📸 Before", after: "✅ After", general: "📷 General" };
+            document.getElementById("lb-type-pill").textContent = typeLabels[p.type] || "📷";
+            document.getElementById("lb-uploader").textContent = `📅 ${p.uploaded}  ·  👤 ${p.uploadedBy || "Citizen"}`;
+
+            document.getElementById("lb-caption").textContent = p.caption;
+
+            // Nav
+            document.getElementById("lb-prev-btn").disabled = (lbIndex === 0);
+            document.getElementById("lb-next-btn").disabled = (lbIndex === lbPhotos.length - 1);
+
+            // Dots
+            document.getElementById("lb-dots").innerHTML = lbPhotos.map((_, i) =>
+                `<div class="lb-dot ${i === lbIndex ? "active" : ""}" onclick="lbGoTo(${i})"></div>`
+            ).join("");
+
+            // Thumbs
+            document.getElementById("lb-thumb-strip").innerHTML = lbPhotos.map((ph, i) => `
+                <div class="lb-thumb ${i === lbIndex ? "active" : ""}" onclick="lbGoTo(${i})"
+                     ${ph.src ? "" : `style="background:${ph.thumbBg || "rgba(255,255,255,.08)"}`}">
+                    ${ph.src ? `<img src="${ph.src}" alt="">` : (ph.emoji || "📷")}
+                </div>`).join("");
+
+            // Comments
+            document.getElementById("lb-comments-list").innerHTML = (p.comments || []).map(c => `
+                <div class="lb-comment-item">
+                    <div class="lb-comment-avatar">${c.author.charAt(0)}</div>
+                    <div class="lb-comment-body">
+                        <div class="lb-comment-author">${c.author}</div>
+                        <div class="lb-comment-text">${c.text}</div>
+                        <div class="lb-comment-meta">▲ ${c.votes} · ${c.time}</div>
+                    </div>
+                </div>`).join("") || `<p style="color:rgba(255,255,255,.3);font-size:13px;padding-bottom:12px">No comments yet. Be the first!</p>`;
+        }
+
+        function lbNavigate(dir) {
+            const next = lbIndex + dir;
+            if (next < 0 || next >= lbPhotos.length) return;
+            lbIndex = next; lbZoomLvl = 1; renderLightbox();
+        }
+
+        function lbGoTo(i) { lbIndex = i; lbZoomLvl = 1; renderLightbox(); }
+
+        function lbZoom(dir) {
+            lbZoomLvl = dir === -999 ? 1 : Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, lbZoomLvl + dir * ZOOM_STEP));
+            const d = document.getElementById("lb-photo-display");
+            d.style.transform = `scale(${lbZoomLvl})`;
+            document.getElementById("lb-stage").classList.toggle("zoomed", lbZoomLvl > 1);
+        }
+
+        function lbResetZoom(render = true) {
+            lbZoomLvl = 1;
+            if (render) {
+                const d = document.getElementById("lb-photo-display");
+                if (d) d.style.transform = "scale(1)";
+                document.getElementById("lb-stage")?.classList.remove("zoomed");
+            }
+        }
+
+        function lbFullscreen() {
+            const lb = document.getElementById("photo-lightbox");
+            if (!document.fullscreenElement) lb.requestFullscreen?.().catch(() => { });
+            else document.exitFullscreen?.();
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (!document.getElementById("photo-lightbox-overlay").classList.contains("active")) return;
+            if (e.key === "ArrowRight") lbNavigate(1);
+            if (e.key === "ArrowLeft") lbNavigate(-1);
+            if (e.key === "Escape") closeLightbox();
+            if (e.key === "+" || e.key === "=") lbZoom(1);
+            if (e.key === "-") lbZoom(-1);
+        });
+
+        // ══════════════════════════════════════════
+        //  GALLERY RENDER
+        // ══════════════════════════════════════════
+        let currentFilter = "all";
+
+        function filterPhotos(btn, filter) {
+            document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+            btn.classList.add("active");
+            currentFilter = filter;
+            renderGallery(getFiltered());
+        }
+
+        function getFiltered() {
+            if (currentFilter === "all") return allPhotos;
+            if (currentFilter.startsWith("sev-")) {
+                const sev = currentFilter.replace("sev-", "");
+                return allPhotos.filter(p => p.severity === sev);
+            }
+            return allPhotos.filter(p => p.type === currentFilter);
+        }
+
+        function updateStats() {
+            document.getElementById("stat-total").textContent = allPhotos.length;
+            document.getElementById("stat-before").textContent = allPhotos.filter(p => p.type === "before").length;
+            document.getElementById("stat-after").textContent = allPhotos.filter(p => p.type === "after").length;
+            document.getElementById("stat-crit").textContent = allPhotos.filter(p => p.severity === "red").length;
+        }
+
+        function renderGallery(photos) {
+            const grid = document.getElementById("photo-gallery");
+            document.getElementById("gallery-count").textContent = `(${photos.length})`;
+            grid.innerHTML = "";
+
+            if (!photos.length) {
+                grid.innerHTML = `<p style="color:var(--gray-text);grid-column:1/-1;text-align:center;padding:40px">No photos in this category yet.</p>`;
+                return;
+            }
+
+            photos.forEach((p, i) => {
+                const typeClass = `type-${p.type}`;
+                const typeLabel = p.type === "before" ? "📸 Before" : p.type === "after" ? "✅ After" : "📷 General";
+                const sevClass = `sev-${p.severity || "green"}`;
+
+                // Find index in allPhotos so lightbox context is correct
+                const globalIndex = allPhotos.indexOf(p);
+
+                const card = document.createElement("div");
+                card.className = `photo-card ${sevClass}`;
+                card.style.animationDelay = `${i * 50}ms`;
+                card.setAttribute("role", "button");
+                card.setAttribute("tabindex", "0");
+                card.setAttribute("aria-label", `View photo: ${p.title || p.caption}`);
+                card.onclick = () => openLightbox(allPhotos, globalIndex, p.lm);
+                card.onkeydown = (e) => { if (e.key === "Enter") card.click(); };
+
+                card.innerHTML = `
+                    <div class="photo-open-hint"><span>🔍 View & Zoom</span></div>
+                    <div class="photo-thumb-large" style="${p.src ? "" : "background:" + (p.thumbBg || "var(--gray-100)")}">
+                        ${p.src ? `<img src="${p.src}" alt="${p.caption}">` : `<span>${p.emoji || "📷"}</span>`}
+                    </div>
+                    <div class="photo-card-body">
+                        <div class="photo-card-title">${p.title || p.caption}</div>
+                        <div class="photo-card-meta">📍 ${p.lm}</div>
+                        <div class="photo-card-meta">🕒 ${p.uploaded}</div>
+                        <span class="type-badge ${typeClass}">${typeLabel}</span>
+                    </div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        // ══════════════════════════════════════════
+        //  UPLOAD
+        // ══════════════════════════════════════════
+        function populateDropdown(city) {
+            const sel = document.getElementById("p-landmark"); if (!sel) return;
+            sel.innerHTML = `<option value="">— Select landmark —</option>`;
+            (LANDMARKS[city.id] || []).forEach(lm => {
+                const o = document.createElement("option");
+                o.value = lm.id; o.textContent = `${lm.icon} ${lm.name}`;
+                sel.appendChild(o);
+            });
+        }
+
+        function onFileChosen(ev) {
+            const prev = document.getElementById("p-preview"); prev.innerHTML = "";
+            const dz = document.getElementById("drop-zone");
+            Array.from(ev.target.files).forEach(f => {
+                const img = document.createElement("img"); img.src = URL.createObjectURL(f); prev.appendChild(img);
+                dz.innerHTML = `<div style="font-size:28px">✅</div><div style="font-size:13px;font-weight:600;color:var(--green)">Photo selected</div><div style="font-size:11px;color:var(--gray-text)">${f.name}</div>`;
+            });
+        }
+
+        function uploadPhoto() {
+            const file = document.getElementById("p-file").files[0];
+            const lm = document.getElementById("p-landmark")?.value?.trim() || "City Area";
+            const type = document.querySelector('input[name="p-type"]:checked')?.value || "general";
+            const sev = document.querySelector('input[name="p-sev"]:checked')?.value || "green";
+            const caption = document.getElementById("p-caption")?.value?.trim() || "No description.";
+
+            if (!file) { showToast("Please select a photo first.", "error"); return; }
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                const newP = {
+                    id: `up-${Date.now()}`,
+                    src: e.target.result,
+                    emoji: "📷",
+                    caption,
+                    title: caption,
+                    lm: lm,
+                    landmarkId: lm, // Using lm as both text and ID for simplicity with text input
+                    type,
+                    severity: sev,
+                    uploaded: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+                    uploadedBy: "You",
+                    thumbBg: sev === "red" ? "linear-gradient(135deg,#E74C3C,#c0392b)" : sev === "yellow" ? "linear-gradient(135deg,#FFC107,#e67e22)" : "linear-gradient(135deg,#28A745,#1abc9c)",
+                    comments: [],
+                };
+                uploadedPhotos.unshift(newP);
+                buildAllPhotos();
+                renderGallery(getFiltered());
+                updateStats();
+                showToast("📷 Photo uploaded successfully!", "success");
+                if (type === "after") showToast("🟢 After photo recorded! Improvement tracked.", "success");
+
+                // auto-open in lightbox
+                setTimeout(() => openLightbox(allPhotos, 0, newP.lm), 400);
+
+                // Reset form
+                document.getElementById("p-caption").value = "";
+                document.getElementById("p-preview").innerHTML = "";
+                document.getElementById("drop-zone").innerHTML = `<div class="drop-zone-icon">📷</div><div class="drop-zone-text">Click to choose photo</div><div class="drop-zone-sub">JPG, PNG, WEBP · Max 10MB</div>`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ══════════════════════════════════════════
+        //  INIT
+        // ══════════════════════════════════════════
+        document.addEventListener("DOMContentLoaded", () => {
+            injectSharedNavCSS(); injectNav(); injectPageNav();
+            const city = getCity();
+            buildAllPhotos();
+            renderGallery(allPhotos);
+            document.getElementById("photo-sub").textContent = `${city.name}, ${city.state} — Upload photos linked to specific city landmarks.`;
+            updateStats();
+        });
+    </script>
+</body>
+
+</html>

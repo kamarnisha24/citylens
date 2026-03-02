@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityLens — Interactive Map</title>
+    <meta name="description"
+        content="Explore city issues on an interactive map. View photo reports, complaints, and infrastructure status for every landmark." />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        /* ── Photo Lightbox Modal ── */
+        .photo-lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s ease;
+            backdrop-filter: blur(6px);
+        }
+
+        .photo-lightbox-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .photo-lightbox {
+            background: #FFFFFF;
+            border-radius: 20px;
+            width: min(94vw, 940px);
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 32px 80px rgba(3, 105, 161, .2);
+            border: 1px solid var(--border);
+            animation: lbIn .3s cubic-bezier(.34, 1.56, .64, 1) both;
+        }
+
+        @keyframes lbIn {
+            from {
+                transform: scale(.88) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0px);
+                opacity: 1;
+            }
+        }
+
+        /* Header */
+        .lb-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .lb-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .lb-landmark-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, .5);
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .lb-photo-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .lb-close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .1);
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+            transition: background .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lb-close-btn:hover {
+            background: rgba(255, 255, 255, .2);
+        }
+
+        /* Image Stage */
+        .lb-stage {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            cursor: zoom-in;
+            background: #070d1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lb-stage.zoomed {
+            cursor: zoom-out;
+        }
+
+        .lb-photo-display {
+            width: 100%;
+            height: 340px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 110px;
+            transition: transform .35s cubic-bezier(.25, .46, .45, .94);
+            transform-origin: center center;
+            user-select: none;
+        }
+
+        .lb-photo-display.has-img {
+            font-size: 0;
+            background: none;
+        }
+
+        .lb-photo-display img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Severity bar */
+        .lb-severity-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .lb-severity-bar.red {
+            background: linear-gradient(90deg, #E74C3C, #c0392b);
+        }
+
+        .lb-severity-bar.yellow {
+            background: linear-gradient(90deg, #FFC107, #e67e22);
+        }
+
+        .lb-severity-bar.green {
+            background: linear-gradient(90deg, #28A745, #1abc9c);
+        }
+
+        /* Nav Arrows */
+        .lb-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .2);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s, transform .2s;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        .lb-nav-btn:hover {
+            background: rgba(255, 255, 255, .25);
+            transform: translateY(-50%) scale(1.08);
+        }
+
+        .lb-nav-btn.prev {
+            left: 12px;
+        }
+
+        .lb-nav-btn.next {
+            right: 12px;
+        }
+
+        .lb-nav-btn:disabled {
+            opacity: .3;
+            pointer-events: none;
+        }
+
+        /* Zoom Controls */
+        .lb-zoom-controls {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .lb-zoom-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, .6);
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s;
+        }
+
+        .lb-zoom-btn:hover {
+            background: rgba(255, 255, 255, .2);
+        }
+
+        /* Photo counter dots */
+        .lb-dots {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+        }
+
+        .lb-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .3);
+            transition: background .2s, width .2s;
+        }
+
+        .lb-dot.active {
+            background: white;
+            width: 20px;
+            border-radius: 10px;
+        }
+
+        /* Fullscreen btn */
+        .lb-fullscreen-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, .5);
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s;
+        }
+
+        .lb-fullscreen-btn:hover {
+            background: rgba(255, 255, 255, .2);
+        }
+
+        /* Info Row */
+        .lb-info-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255, 255, 255, .07);
+            flex-wrap: wrap;
+        }
+
+        .lb-severity-pill {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 100px;
+            letter-spacing: .04em;
+        }
+
+        .lb-sev-red {
+            background: rgba(231, 76, 60, .2);
+            color: #f97066;
+        }
+
+        .lb-sev-yellow {
+            background: rgba(255, 193, 7, .18);
+            color: #ffc107;
+        }
+
+        .lb-sev-green {
+            background: rgba(40, 167, 69, .18);
+            color: #4ade80;
+        }
+
+        .lb-type-pill {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .6);
+        }
+
+        .lb-uploader {
+            font-size: 12px;
+            color: rgba(255, 255, 255, .45);
+            margin-left: auto;
+        }
+
+        /* Caption */
+        .lb-caption {
+            padding: 0 20px 14px;
+            font-size: 13.5px;
+            color: rgba(255, 255, 255, .72);
+            line-height: 1.6;
+        }
+
+        /* Thumbnail strip */
+        .lb-thumb-strip {
+            display: flex;
+            gap: 8px;
+            padding: 10px 20px 14px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, .2) transparent;
+            border-top: 1px solid rgba(255, 255, 255, .06);
+        }
+
+        .lb-thumb {
+            width: 58px;
+            height: 50px;
+            border-radius: 9px;
+            flex-shrink: 0;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: border .2s, transform .2s;
+            overflow: hidden;
+        }
+
+        .lb-thumb.active {
+            border-color: #3b82f6;
+            transform: scale(1.05);
+        }
+
+        .lb-thumb:hover {
+            border-color: rgba(255, 255, 255, .4);
+        }
+
+        /* Comments */
+        .lb-comments-section {
+            padding: 0 20px 4px;
+            border-top: 1px solid rgba(255, 255, 255, .07);
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .lb-comments-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            color: rgba(255, 255, 255, .4);
+            text-transform: uppercase;
+            padding: 12px 0 8px;
+        }
+
+        .lb-comment-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: flex-start;
+        }
+
+        .lb-comment-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .lb-comment-body {
+            flex: 1;
+        }
+
+        .lb-comment-author {
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .8);
+        }
+
+        .lb-comment-text {
+            font-size: 12.5px;
+            color: rgba(255, 255, 255, .55);
+            margin-top: 2px;
+            line-height: 1.5;
+        }
+
+        .lb-comment-meta {
+            font-size: 11px;
+            color: rgba(255, 255, 255, .3);
+            margin-top: 3px;
+        }
+
+        /* ── Photo Cluster Marker ── */
+        .photo-cluster-marker {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 4px 14px rgba(3, 105, 161, .3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            background: var(--blue-light);
+            overflow: visible;
+        }
+
+        .photo-cluster-marker:hover {
+            transform: scale(1.15) rotate(4deg);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .8);
+        }
+
+        /* Severity Ring Around Thumbnail */
+        .photo-cluster-marker::after {
+            content: "";
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            pointer-events: none;
+        }
+
+        .photo-cluster-marker.sev-red::after {
+            border-color: var(--red);
+            box-shadow: 0 0 10px var(--red-light);
+        }
+
+        .photo-cluster-marker.sev-yellow::after {
+            border-color: var(--yellow);
+            box-shadow: 0 0 10px var(--yellow-light);
+        }
+
+        .photo-cluster-marker.sev-green::after {
+            border-color: var(--green);
+            box-shadow: 0 0 10px var(--green-light);
+        }
+
+        .photo-count-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--blue-dark);
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+            border: 2px solid white;
+            z-index: 2;
+        }
+
+        /* Camera icon pulse on new markers */
+        @keyframes markerPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, .5);
+            }
+
+            70% {
+                box-shadow: 0 0 0 12px rgba(231, 76, 60, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+            }
+        }
+
+        .photo-cluster-marker.sev-red {
+            animation: markerPulse 2.2s ease-out infinite;
+        }
+
+        /* Hover Thumbnail Tooltip (Leaflet tooltip override) */
+        .photo-hover-tip {
+            background: #0f172a !important;
+            border: 1px solid rgba(255, 255, 255, .12) !important;
+            border-radius: 12px !important;
+            padding: 10px 12px !important;
+            color: white !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .5) !important;
+            min-width: 170px;
+        }
+
+        .photo-hover-tip::before {
+            display: none !important;
+        }
+
+        .photo-tip-thumb {
+            width: 100%;
+            height: 70px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        .photo-tip-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 3px;
+        }
+
+        .photo-tip-meta {
+            font-size: 11px;
+            color: rgba(255, 255, 255, .5);
+        }
+
+        .photo-tip-sev {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 100px;
+            margin-top: 5px;
+        }
+
+        /* ── Toggle Layer Button ── */
+        .layer-toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--panel-bg);
+            border-radius: 20px;
+            padding: 4px 12px 4px 6px;
+            border: 1px solid var(--border);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--dark);
+            cursor: pointer;
+            user-select: none;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .layer-toggle-wrap input {
+            cursor: pointer;
+            accent-color: var(--blue-dark);
+        }
+
+        /* ── Map Landmark Modal (existing, tweaked) ── */
+        .photos-strip-in-modal {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .photo-thumb-in-modal {
+            width: 72px;
+            height: 60px;
+            border-radius: 10px;
+            border: 2px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: border-color .2s, transform .2s;
+            background: var(--gray-100);
+        }
+
+        .photo-thumb-in-modal:hover {
+            border-color: var(--blue-mid);
+            transform: scale(1.04);
+        }
+
+        .photo-thumb-in-modal.sev-red {
+            border-color: rgba(231, 76, 60, .4);
+        }
+
+        .photo-thumb-in-modal.sev-yellow {
+            border-color: rgba(255, 193, 7, .4);
+        }
+
+        .photo-thumb-in-modal.sev-green {
+            border-color: rgba(40, 167, 69, .4);
+        }
+
+        .no-photos-note {
+            font-size: 13px;
+            color: var(--gray-text);
+            padding: 8px 0;
+        }
+
+        /* Landmark modal photo section header */
+        .modal-photos-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+
+<body class="dashboard-body" style="overflow:hidden">
+    <div id="toast-container"></div>
+
+    <!-- ── Landmark Info Modal ── -->
+    <div class="modal-overlay" id="landmark-modal-overlay" onclick="closeModal('landmark-modal-overlay',event)">
+        <div class="modal modal-xl" role="dialog">
+            <div class="modal-header">
+                <div>
+                    <span class="badge bg-blue" id="lm-category">Category</span>
+                    <h3 id="lm-title" style="margin-top:6px">Landmark</h3>
+                    <p id="lm-desc" style="font-size:13px;color:var(--gray-text);margin-top:4px"></p>
+                </div>
+                <button class="close-btn" onclick="closeModal('landmark-modal-overlay')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="lm-status-row">
+                    <div class="lm-status-item">
+                        <div class="lm-status-label">Status</div>
+                        <div class="lm-status-value" id="lm-status">—</div>
+                    </div>
+                    <div class="lm-status-item">
+                        <div class="lm-status-label">Reports</div>
+                        <div class="lm-status-value" id="lm-reports">—</div>
+                    </div>
+                    <div class="lm-status-item">
+                        <div class="lm-status-label">Last Updated</div>
+                        <div class="lm-status-value" id="lm-updated">—</div>
+                    </div>
+                    <div class="lm-status-item">
+                        <div class="lm-status-label">Authority</div>
+                        <div class="lm-status-value" id="lm-authority">—</div>
+                    </div>
+                </div>
+
+                <!-- Photo section inside landmark modal -->
+                <hr class="divider" />
+                <div class="modal-photos-header">
+                    <div class="section-label" style="margin:0">📸 Photo Reports</div>
+                    <span id="lm-photo-count" style="font-size:12px;color:var(--gray-text)"></span>
+                </div>
+                <div class="photos-strip-in-modal" id="lm-photos-strip"></div>
+
+                <hr class="divider" />
+                <div class="section-label">Improvement History</div>
+                <div class="history-list" id="lm-history"></div>
+
+                <hr class="divider" />
+                <div class="section-label">Citizen Comments</div>
+                <div class="comments-list" id="lm-comments">
+                    <div class="comment-item">
+                        <div class="comment-avatar">👤</div>
+                        <div class="comment-body">
+                            <span class="comment-author">Ravi K.</span>
+                            <span class="comment-text">This needs urgent attention from BBMP!</span>
+                            <div class="comment-meta">▲ 23 · 2 days ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost btn-sm" onclick="location.href='photos.html'">📷 Upload Photo</button>
+                <button class="btn btn-outline btn-sm" onclick="location.href='complaints.html'">💬 File
+                    Complaint</button>
+                <button class="btn btn-primary btn-sm" onclick="closeModal('landmark-modal-overlay')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── PHOTO LIGHTBOX ── -->
+    <div class="photo-lightbox-overlay" id="photo-lightbox-overlay" onclick="lbClickOut(event)">
+        <div class="photo-lightbox" id="photo-lightbox">
+            <div class="lb-header">
+                <div class="lb-header-left">
+                    <div class="lb-landmark-name" id="lb-landmark-name">Landmark</div>
+                    <div class="lb-photo-title" id="lb-photo-title">Photo Title</div>
+                </div>
+                <button class="lb-close-btn" id="lb-close-btn" onclick="closeLightbox()">✕</button>
+            </div>
+
+            <div class="lb-stage" id="lb-stage">
+                <div class="lb-severity-bar" id="lb-sev-bar"></div>
+                <div class="lb-photo-display" id="lb-photo-display">📷</div>
+
+                <button class="lb-nav-btn prev" id="lb-prev-btn" onclick="lbNavigate(-1)">‹</button>
+                <button class="lb-nav-btn next" id="lb-next-btn" onclick="lbNavigate(1)">›</button>
+
+                <div class="lb-dots" id="lb-dots"></div>
+
+                <div class="lb-zoom-controls">
+                    <button class="lb-zoom-btn" id="lb-zoom-out" onclick="lbZoom(-1)" title="Zoom out">−</button>
+                    <button class="lb-zoom-btn" id="lb-zoom-in" onclick="lbZoom(1)" title="Zoom in">+</button>
+                    <button class="lb-zoom-btn" onclick="lbResetZoom()" title="Reset zoom"
+                        style="font-size:13px">⊙</button>
+                </div>
+
+                <button class="lb-fullscreen-btn" onclick="lbFullscreen()" title="Fullscreen">⛶</button>
+            </div>
+
+            <div class="lb-info-row" id="lb-info-row">
+                <span class="lb-severity-pill" id="lb-sev-pill"></span>
+                <span class="lb-type-pill" id="lb-type-pill"></span>
+                <span class="lb-uploader" id="lb-uploader"></span>
+            </div>
+
+            <div class="lb-caption" id="lb-caption"></div>
+
+            <div class="lb-thumb-strip" id="lb-thumb-strip"></div>
+
+            <div class="lb-comments-section" id="lb-comments-section">
+                <div class="lb-comments-label">💬 Citizen Comments</div>
+                <div id="lb-comments-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/shared.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ══════════════════════════════════════════════════════
+        //  LIGHTBOX STATE
+        // ══════════════════════════════════════════════════════
+        let lbPhotos = [];      // current photo set shown in lightbox
+        let lbIndex = 0;       // current photo index
+        let lbZoomLvl = 1;      // zoom level (1 = normal)
+        let lbLandmarkName = "";
+
+        const ZOOM_MIN = 1, ZOOM_MAX = 4, ZOOM_STEP = 0.5;
+
+        function openLightbox(photos, startIndex, landmarkName) {
+            if (!photos || !photos.length) return;
+            lbPhotos = photos;
+            lbIndex = startIndex || 0;
+            lbLandmarkName = landmarkName || "";
+            lbZoomLvl = 1;
+            renderLightbox();
+            document.getElementById("photo-lightbox-overlay").classList.add("active");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeLightbox() {
+            document.getElementById("photo-lightbox-overlay").classList.remove("active");
+            document.body.style.overflow = "";
+            lbResetZoom();
+        }
+
+        function lbClickOut(ev) {
+            if (ev.target === document.getElementById("photo-lightbox-overlay")) closeLightbox();
+        }
+
+        function renderLightbox() {
+            const p = lbPhotos[lbIndex];
+            if (!p) return;
+
+            // Header
+            document.getElementById("lb-landmark-name").textContent = lbLandmarkName;
+            document.getElementById("lb-photo-title").textContent = p.title;
+
+            // Severity bar
+            const sevBar = document.getElementById("lb-sev-bar");
+            sevBar.className = "lb-severity-bar " + p.severity;
+
+            // Photo display
+            const display = document.getElementById("lb-photo-display");
+            if (p.src) {
+                display.innerHTML = `<img src="${p.src}" alt="${p.title}" draggable="false">`;
+                display.classList.add("has-img");
+            } else {
+                display.innerHTML = p.emoji || "📷";
+                display.classList.remove("has-img");
+                display.style.background = p.thumbBg || "rgba(255,255,255,.05)";
+            }
+            lbResetZoom(false);
+
+            // Stage click to zoom
+            const stage = document.getElementById("lb-stage");
+            stage.onclick = null;
+            stage.onclick = (e) => {
+                if (e.target === document.getElementById("lb-prev-btn") ||
+                    e.target === document.getElementById("lb-next-btn") ||
+                    e.target.closest(".lb-zoom-controls") ||
+                    e.target.classList.contains("lb-fullscreen-btn")) return;
+                lbZoom(lbZoomLvl < ZOOM_MAX ? 1 : -999);
+            };
+
+            // Info row
+            const sevMap = { red: ["🔴 Critical", "lb-sev-red"], yellow: ["🟡 Moderate", "lb-sev-yellow"], green: ["🟢 Minor", "lb-sev-green"] };
+            const [sevLabel, sevClass] = sevMap[p.severity] || sevMap.green;
+            const pill = document.getElementById("lb-sev-pill");
+            pill.textContent = sevLabel;
+            pill.className = "lb-severity-pill " + sevClass;
+
+            const typeLabels = { before: "📸 Before", after: "✅ After", general: "📷 General" };
+            document.getElementById("lb-type-pill").textContent = typeLabels[p.type] || "📷";
+            document.getElementById("lb-uploader").textContent = `📅 ${p.uploaded}  ·  👤 ${p.uploadedBy}`;
+
+            // Caption
+            document.getElementById("lb-caption").textContent = p.caption;
+
+            // Nav buttons
+            document.getElementById("lb-prev-btn").disabled = (lbIndex === 0);
+            document.getElementById("lb-next-btn").disabled = (lbIndex === lbPhotos.length - 1);
+
+            // Dots
+            const dotsEl = document.getElementById("lb-dots");
+            dotsEl.innerHTML = lbPhotos.map((_, i) =>
+                `<div class="lb-dot ${i === lbIndex ? "active" : ""}" onclick="lbGoTo(${i})"></div>`
+            ).join("");
+
+            // Thumbnail strip
+            const stripEl = document.getElementById("lb-thumb-strip");
+            stripEl.innerHTML = lbPhotos.map((ph, i) => `
+                <div class="lb-thumb ${i === lbIndex ? "active" : ""}" onclick="lbGoTo(${i})"
+                     style="${ph.src ? "" : "background:" + (ph.thumbBg || "rgba(255,255,255,.05)")}">
+                    ${ph.src ? `<img src="${ph.src}" style="width:100%;height:100%;object-fit:cover">` : (ph.emoji || "📷")}
+                </div>
+            `).join("");
+
+            // Comments
+            const cmtList = document.getElementById("lb-comments-list");
+            cmtList.innerHTML = (p.comments || []).map(c => `
+                <div class="lb-comment-item">
+                    <div class="lb-comment-avatar">${c.author.charAt(0)}</div>
+                    <div class="lb-comment-body">
+                        <div class="lb-comment-author">${c.author}</div>
+                        <div class="lb-comment-text">${c.text}</div>
+                        <div class="lb-comment-meta">▲ ${c.votes} · ${c.time}</div>
+                    </div>
+                </div>
+            `).join("") || `<p style="color:rgba(255,255,255,.3);font-size:13px;padding-bottom:12px">No comments yet.</p>`;
+        }
+
+        function lbNavigate(dir) {
+            const next = lbIndex + dir;
+            if (next < 0 || next >= lbPhotos.length) return;
+            lbIndex = next;
+            lbZoomLvl = 1;
+            renderLightbox();
+        }
+
+        function lbGoTo(i) {
+            lbIndex = i;
+            lbZoomLvl = 1;
+            renderLightbox();
+        }
+
+        function lbZoom(dir) {
+            if (dir === -999) { lbZoomLvl = 1; }
+            else { lbZoomLvl = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, lbZoomLvl + dir * ZOOM_STEP)); }
+            const display = document.getElementById("lb-photo-display");
+            display.style.transform = `scale(${lbZoomLvl})`;
+            const stage = document.getElementById("lb-stage");
+            stage.classList.toggle("zoomed", lbZoomLvl > 1);
+        }
+
+        function lbResetZoom(render = true) {
+            lbZoomLvl = 1;
+            if (render) {
+                const display = document.getElementById("lb-photo-display");
+                if (display) display.style.transform = "scale(1)";
+                document.getElementById("lb-stage")?.classList.remove("zoomed");
+            }
+        }
+
+        function lbFullscreen() {
+            const lb = document.getElementById("photo-lightbox");
+            if (!document.fullscreenElement) {
+                lb.requestFullscreen?.().catch(() => { });
+            } else {
+                document.exitFullscreen?.();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener("keydown", (e) => {
+            if (!document.getElementById("photo-lightbox-overlay").classList.contains("active")) return;
+            if (e.key === "ArrowRight") lbNavigate(1);
+            if (e.key === "ArrowLeft") lbNavigate(-1);
+            if (e.key === "Escape") closeLightbox();
+            if (e.key === "+" || e.key === "=") lbZoom(1);
+            if (e.key === "-") lbZoom(-1);
+        });
+
+
+        // ══════════════════════════════════════════════════════
+        //  MAP INIT
+        // ══════════════════════════════════════════════════════
+        document.addEventListener("DOMContentLoaded", () => {
+            injectSharedNavCSS();
+            // Removed redundant top navigation bars for full map view
+            // injectNav();
+            // injectPageNav();
+
+            const city = getCity();
+            const landmarks = LANDMARKS[city.id] || [];
+
+            // Map wrapper - now hits top:0
+            const mapWrap = document.createElement("div");
+            mapWrap.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:1";
+            document.body.appendChild(mapWrap);
+
+            // Filter bar
+            const filterBar = document.createElement("div");
+            filterBar.style.cssText = "position:absolute;top:0;left:0;right:0;z-index:500;background:white;border-bottom:1px solid #e2e4ea;padding:8px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center";
+
+            // Dashboard Back Link
+            const backBtn = document.createElement("button");
+            backBtn.className = "filter-chip";
+            backBtn.innerHTML = "← Dashboard";
+            backBtn.onclick = () => location.href = "dashboard.html";
+            filterBar.appendChild(backBtn);
+
+            const categories = ["All", "Parks & Green Spaces", "Roads & Highways", "Bridges", "Hospitals", "Schools & Colleges", "Public Amenities", "Government Offices", "Markets & Commerce"];
+            const chipLabels = ["All", "🌳 Parks", "🛣️ Roads", "🌉 Bridges", "🏥 Hospitals", "🏫 Schools", "🚻 Amenities", "🏛️ Govt", "🏪 Markets"];
+            categories.forEach((cat, i) => {
+                const btn = document.createElement("button");
+                btn.className = "filter-chip" + (i === 0 ? " active" : "");
+                btn.textContent = chipLabels[i];
+                btn.onclick = () => {
+                    document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+                    btn.classList.add("active");
+                    markers.forEach(({ mk, lm }) => {
+                        if (cat === "All" || lm.category === cat) mk.addTo(leafMap);
+                        else leafMap.removeLayer(mk);
+                    });
+                    // also toggle photo markers
+                    photoMarkers.forEach(({ mk, ph }) => {
+                        const lm = landmarks.find(l => l.id === ph.landmarkId);
+                        if (showPhotos && (cat === "All" || (lm && lm.category === cat))) mk.addTo(leafMap);
+                        else leafMap.removeLayer(mk);
+                    });
+                };
+                filterBar.appendChild(btn);
+            });
+
+            // Photo layer toggle
+            const toggleWrap = document.createElement("label");
+            toggleWrap.className = "layer-toggle-wrap";
+            toggleWrap.title = "Toggle photo report markers";
+            toggleWrap.innerHTML = `<input type="checkbox" id="photo-layer-toggle" checked> 📸 Photos`;
+            filterBar.appendChild(toggleWrap);
+
+            // Lens button
+            const lensBtn = document.createElement("button");
+            lensBtn.className = "city-lens-btn"; lensBtn.textContent = "🔍 City Lens";
+            lensBtn.style.marginLeft = "auto";
+            lensBtn.onclick = () => location.href = "city-lens.html";
+            filterBar.appendChild(lensBtn);
+
+            mapWrap.appendChild(filterBar);
+
+            // Map div
+            const mapDiv = document.createElement("div");
+            mapDiv.id = "map-container";
+            mapDiv.style.cssText = "position:absolute;top:48px;left:0;right:0;bottom:0";
+            mapWrap.appendChild(mapDiv);
+
+            const leafMap = L.map("map-container", { center: [city.lat, city.lng], zoom: 14 });
+            // Satellite View (ESRI)
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                attribution: "Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+            }).addTo(leafMap);
+
+            // ── LANDMARK MARKERS ── //
+            const markers = [];
+            const HISTORY = {
+                "ln1": [
+                    { date: "Jan 15, 2026", event: "Complaint filed — structural crack observed", type: "complaint" },
+                    { date: "Feb 3, 2026", event: "BBMP acknowledged report", type: "authority" },
+                    { date: "Mar 2, 2026", event: "Repair scheduled for March 15", type: "info" }
+                ],
+                "an1": [
+                    { date: "Feb 10, 2026", event: "Pothole complaint filed", type: "complaint" },
+                    { date: "Feb 20, 2026", event: "BBMP Roads Division acknowledged", type: "authority" }
+                ],
+            };
+
+            landmarks.forEach(lm => {
+                const icon = L.divIcon({
+                    className: "",
+                    html: `<div class="custom-marker marker-${lm.status}" title="${lm.name}">${lm.icon}</div>`,
+                    iconSize: [34, 34], iconAnchor: [17, 17],
+                });
+                const mk = L.marker([lm.lat, lm.lng], { icon }).addTo(leafMap)
+                    .bindTooltip(`<strong>${lm.icon} ${lm.name}</strong><br>${lm.status === "green" ? "🟢 Functional" : lm.status === "yellow" ? "🟡 Maintenance" : "🔴 Critical"}<br><small style="color:#6B7280">${lm.reports} reports · Click for details</small>`,
+                        { className: "map-tooltip", direction: "top", offset: [0, -18] });
+
+                mk.on("click", () => {
+                    document.getElementById("lm-category").textContent = lm.category;
+                    document.getElementById("lm-title").textContent = `${lm.icon} ${lm.name}`;
+                    document.getElementById("lm-desc").textContent = lm.description;
+                    document.getElementById("lm-reports").textContent = `${lm.reports} open`;
+                    document.getElementById("lm-updated").textContent = lm.lastUpdated;
+                    document.getElementById("lm-authority").textContent = lm.authority;
+                    const st = document.getElementById("lm-status");
+                    st.textContent = lm.status === "green" ? "🟢 Functional" : lm.status === "yellow" ? "🟡 Maintenance" : "🔴 Critical";
+                    st.style.color = statusDotColor(lm.status);
+
+                    // History
+                    const hist = HISTORY[lm.id] || [];
+                    document.getElementById("lm-history").innerHTML = hist.length === 0
+                        ? "<p style='color:var(--gray-text);font-size:13px'>No history recorded yet.</p>"
+                        : hist.map(h => `<div class="history-item"><span class="history-dot" style="background:${h.type === "complaint" ? "var(--red)" : h.type === "authority" ? "var(--blue-mid)" : "var(--green)"}"></span><span class="history-date">${h.date}</span><span class="history-event">${h.event}</span></div>`).join("");
+
+                    // Photos strip inside modal
+                    const lmPhotos = (typeof PHOTO_REPORTS !== "undefined" ? PHOTO_REPORTS : []).filter(p => p.landmarkId === lm.id);
+                    const strip = document.getElementById("lm-photos-strip");
+                    document.getElementById("lm-photo-count").textContent = lmPhotos.length ? `${lmPhotos.length} photo${lmPhotos.length > 1 ? "s" : ""}` : "";
+
+                    if (lmPhotos.length === 0) {
+                        strip.innerHTML = `<p class="no-photos-note">No photos submitted yet. <a href="photos.html" style="color:var(--blue-mid)">Be the first!</a></p>`;
+                    } else {
+                        strip.innerHTML = lmPhotos.map((ph, i) => `
+                            <div class="photo-thumb-in-modal sev-${ph.severity}" onclick="openLightboxFromModal(${i},'${lm.name}')" title="${ph.title}">
+                                ${ph.src ? `<img src="${ph.src}" style="width:100%;height:100%;object-fit:cover">` : ph.emoji}
+                            </div>
+                        `).join("");
+                        // store for modal lightbox open
+                        strip._photos = lmPhotos;
+                        strip._lmName = lm.name;
+                    }
+
+                    openModal("landmark-modal-overlay");
+                });
+                markers.push({ mk, lm });
+            });
+
+            // ── PHOTO REPORT MARKERS ── //
+            let showPhotos = true;
+            const photoMarkers = [];
+            const cityPhotos = (typeof PHOTO_REPORTS !== "undefined" ? PHOTO_REPORTS : []);
+
+            // Group photos by landmarkId for the cluster-style display
+            const photosByLandmark = {};
+            cityPhotos.forEach(ph => {
+                if (!photosByLandmark[ph.landmarkId]) photosByLandmark[ph.landmarkId] = [];
+                photosByLandmark[ph.landmarkId].push(ph);
+            });
+
+            // Determine worst severity for a group
+            function worstSeverity(photos) {
+                if (photos.some(p => p.severity === "red")) return "red";
+                if (photos.some(p => p.severity === "yellow")) return "yellow";
+                return "green";
+            }
+
+            Object.entries(photosByLandmark).forEach(([landmarkId, photos]) => {
+                const lm = landmarks.find(l => l.id === landmarkId);
+                if (!lm) return;
+
+                const sev = worstSeverity(photos);
+                const count = photos.length;
+                const lastDate = photos[photos.length - 1].uploaded;
+
+                // Slightly offset from landmark marker
+                const offsetLat = lm.lat + 0.0012;
+                const offsetLng = lm.lng + 0.0015;
+
+                const icon = L.divIcon({
+                    className: "",
+                    html: `
+                        <div class="photo-cluster-marker sev-${sev}" title="📸 ${count} photo report${count > 1 ? "s" : ""}">
+                            📷
+                            <span class="photo-count-badge">${count}</span>
+                        </div>`,
+                    iconSize: [44, 44], iconAnchor: [22, 22],
+                });
+
+                const sevLabels = { red: "🔴 Critical", yellow: "🟡 Moderate", green: "🟢 Minor" };
+                const sevClasses = { red: "lb-sev-red", yellow: "lb-sev-yellow", green: "lb-sev-green" };
+
+                const tooltipHTML = `
+                    <div>
+                        <div class="photo-tip-thumb" style="background:${photos[0].thumbBg || "rgba(255,255,255,.05)"}">
+                            ${photos[0].emoji || "📷"}
+                        </div>
+                        <div class="photo-tip-title">📸 ${count} Photo Report${count > 1 ? "s" : ""}</div>
+                        <div class="photo-tip-meta">📍 ${lm.name}</div>
+                        <div class="photo-tip-meta">🕒 Last: ${lastDate}</div>
+                        <span class="photo-tip-sev ${sevClasses[sev]}" style="margin-top:5px;display:inline-block">${sevLabels[sev]}</span>
+                    </div>`;
+
+                const mk = L.marker([offsetLat, offsetLng], { icon, zIndexOffset: 100 }).addTo(leafMap)
+                    .bindTooltip(tooltipHTML, {
+                        className: "photo-hover-tip",
+                        direction: "top",
+                        offset: [0, -22],
+                        sticky: false,
+                    });
+
+                mk.on("click", () => {
+                    openLightbox(photos, 0, lm.name);
+                });
+
+                photoMarkers.push({ mk, ph: photos[0] });
+            });
+
+            // Toggle photo layer
+            document.getElementById("photo-layer-toggle").addEventListener("change", (e) => {
+                showPhotos = e.target.checked;
+                photoMarkers.forEach(({ mk }) => {
+                    if (showPhotos) mk.addTo(leafMap);
+                    else leafMap.removeLayer(mk);
+                });
+                showToast(showPhotos ? "📸 Photo markers shown" : "📸 Photo markers hidden", "info");
+            });
+
+            // Simulate real-time new photo (after 8 seconds)
+            setTimeout(() => {
+                showToast("📸 New photo report submitted near KR Market!", "success");
+            }, 8000);
+
+            // Map legend
+            const legend = L.control({ position: "bottomleft" });
+            legend.onAdd = () => {
+                const d = L.DomUtil.create("div");
+                d.style.cssText = "background:var(--modal-bg);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow-lg);border:1px solid var(--border);font-size:13px;display:flex;flex-direction:column;gap:6px;max-width:180px;color:var(--dark);backdrop-filter:blur(8px)";
+                d.innerHTML = `
+                    <strong style="font-size:11px;color:var(--gray-text);letter-spacing:0.05em;text-transform:uppercase">MAP LEGEND</strong>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:6px;box-shadow:0 0 8px var(--green)"></span>Functional</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--yellow);margin-right:6px;box-shadow:0 0 8px var(--yellow)"></span>Maintenance</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:6px;box-shadow:0 0 8px var(--red)"></span>Critical</span>
+                    <hr style="border:none;border-top:1px solid var(--border);margin:2px 0">
+                    <span>📷 = Photo report marker</span>
+                    <span style="font-size:11px;color:var(--gray-text)">Click photo markers to view</span>`;
+                return d;
+            };
+            legend.addTo(leafMap);
+        });
+
+        // Helper: open lightbox from landmark modal
+        function openLightboxFromModal(index, landmarkName) {
+            const strip = document.getElementById("lm-photos-strip");
+            if (!strip._photos) return;
+            closeModal("landmark-modal-overlay");
+            setTimeout(() => openLightbox(strip._photos, index, landmarkName), 80);
+        }
+    </script>
+</body>
+
+</html>
